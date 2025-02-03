@@ -1,0 +1,11 @@
+:host {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  grid-template-rows: repeat(2, auto);
+}
+
+h4 {
+  padding: 0px;
+  margin: 0px 5px;
+  line-height: 40px; /* TODO: Synchronize with the size of squares */
+}

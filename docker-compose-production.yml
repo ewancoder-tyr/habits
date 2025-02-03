@@ -1,0 +1,14 @@
+version: "3.8"
+
+networks:
+  default:
+    name: typingrealm
+    external: true
+
+services:
+  habits-web:
+    image: ghcr.io/ewancoder/habits-web:main
+    container_name: habits-web
+    restart: unless-stopped
+    mem_limit: 1g
+    mem_reservation: 750m

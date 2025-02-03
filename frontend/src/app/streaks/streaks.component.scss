@@ -1,0 +1,17 @@
+.controls {
+  text-align: center;
+}
+
+button {
+  font-weight: bold;
+  border: 1px solid #ccc;
+  height: 40px;
+  padding: 14px 10px;
+  margin: 5px;
+  background-color: rgb(198, 255, 211);
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: rgb(148, 251, 172);
+}
