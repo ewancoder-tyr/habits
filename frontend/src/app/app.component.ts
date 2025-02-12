@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthComponent } from './auth/auth.component';
+import { AuthService } from './auth.service';
 
 @Component({
     selector: 'hab-root',
@@ -9,4 +10,8 @@ import { AuthComponent } from './auth/auth.component';
     styleUrl: './app.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppComponent {}
+export class AppComponent {
+    constructor(protected auth: AuthService) {
+        auth.getToken(); // Authenticate on startup.
+    }
+}

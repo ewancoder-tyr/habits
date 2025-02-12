@@ -9,8 +9,9 @@ export function setupAuth(getToken: () => Promise<string>) {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
     private token: string = '';
-    private needsAuthSignal: WritableSignal<boolean> = signal(true);
     private lock = createLock();
+
+    public needsAuthSignal: WritableSignal<boolean> = signal(true);
 
     public async getToken(): Promise<string> {
         if (!this.needsAuthSignal) {

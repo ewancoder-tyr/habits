@@ -1,2 +1,6 @@
-<hab-auth></hab-auth>
-<router-outlet />
+@if (auth.needsAuthSignal()) {
+  <hab-auth></hab-auth>
+  <router-outlet />
+} @else {
+  <router-outlet />
+}
