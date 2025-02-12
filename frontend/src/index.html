@@ -14,12 +14,4 @@
   <body>
     <hab-root></hab-root>
   </body>
-  <script>
-    function handleAuthResponse(response) {
-      const responsePayload = JSON.parse(atob(response.credential.split('.')[1]));
-      console.log(response);
-      sessionStorage.setItem('token', response.credential);
-      sessionStorage.setItem('user', JSON.stringify(responsePayload));
-    }
-  </script>
 </html>
