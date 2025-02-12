@@ -1,5 +1,7 @@
-@if (auth.needsAuthSignal()) {
-  <hab-auth></hab-auth>
+@let needsAuth = auth.needsAuthSignal();
+
+<hab-auth [class.hidden]="!needsAuth"></hab-auth>
+@if (needsAuth) {
   <router-outlet />
 } @else {
   <img class="avatar" [src]="auth.picture" />

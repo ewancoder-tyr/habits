@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, signal, ViewChild } from '@angular/core';
 import { initializeGoogleAuth } from '../google-auth';
 import { AuthService } from '../auth.service';
 
@@ -14,8 +14,11 @@ export class AuthComponent {
     @HostListener('window:load')
     async onLoad() {
         initializeGoogleAuth(this.authElement.nativeElement);
-        await this.auth.getToken();
     }
 
-    constructor(protected auth: AuthService) {}
+    constructor(protected auth: AuthService) {
+        effect(() => {
+            if (auth.needsAuthSignal()) this.auth.getToken();
+        });
+    }
 }
