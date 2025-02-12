@@ -12,6 +12,7 @@ export class AuthService {
     private lock = createLock();
 
     public needsAuthSignal: WritableSignal<boolean> = signal(true);
+    public picture: string | undefined;
 
     public async getToken(): Promise<string> {
         if (!this.needsAuthSignal) {
@@ -32,6 +33,8 @@ export class AuthService {
             setTimeout(() => {
                 this.needsAuthSignal.set(true);
             }, this.getMsTillAuthenticationIsRequired(this.token));
+
+            this.picture = this.parseJwt(this.token).picture;
 
             return this.token;
         } finally {

@@ -11,7 +11,5 @@ import { AuthService } from './auth.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
-    constructor(protected auth: AuthService) {
-        auth.getToken(); // Authenticate on startup.
-    }
+    constructor(protected auth: AuthService) {}
 }
