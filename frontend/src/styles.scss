@@ -1,0 +1,10 @@
+$bgOpacity: 0.95;
+
+html {
+  background: linear-gradient(rgba(255, 255, 255, $bgOpacity), rgba(255, 255, 255, $bgOpacity)), url('/bg.webp');
+  filter: brigtness(50%);
+}
+
+html::before {
+  background-color: rgba(0, 0, 0, 0.5);
+}
