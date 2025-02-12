@@ -6,8 +6,17 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <hab-root></hab-root>
   </body>
+  <script>
+    function handleAuthResponse(response) {
+      const responsePayload = JSON.parse(atob(response.credential.split('.')[1]));
+      console.log(response);
+      sessionStorage.setItem('token', response.credential);
+      sessionStorage.setItem('user', JSON.stringify(responsePayload));
+    }
+  </script>
 </html>
