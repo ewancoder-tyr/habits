@@ -8,7 +8,8 @@ import { DayStatus, StreaksService } from '../streaks.service';
     styleUrl: './streak-day.component.scss',
     host: {
         '[class]': 'getClass()',
-        '(click)': 'service.toggle(this.day)'
+        '(click)': 'service.toggle(this.day)',
+        '[class.today]': 'day.isToday'
     },
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -34,4 +35,5 @@ export interface StreakDay {
     day: number;
     status: DayStatus;
     habit: string;
+    isToday?: boolean;
 }

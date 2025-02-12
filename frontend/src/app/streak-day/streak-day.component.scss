@@ -1,7 +1,7 @@
 :host {
   display: block;
-  width: 35px;
-  height: 35px;
+  width: 40px;
+  height: 40px;
   line-height: 35px;
   padding: 2px;
   border: 1px solid #88888877;
@@ -9,6 +9,7 @@
   color: #888;
   background-color: #ee333311;
   cursor: pointer;
+  box-sizing: border-box;
 
   &.marked,
   &.marked-light {
@@ -17,5 +18,9 @@
 
   &.marked-light {
     opacity: 0.5;
+  }
+
+  &.today {
+    border: 2px solid #c78bf4;
   }
 }

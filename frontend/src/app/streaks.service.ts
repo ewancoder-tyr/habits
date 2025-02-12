@@ -58,6 +58,7 @@ export class StreaksService {
     }
 
     public getMonthDaysSignal(year: number, month: number) {
+        const isCurrentMonth = year === new Date().getFullYear() && month === new Date().getMonth();
         const startingDayNumber = this.getStartingDayNumber(year, month);
         const daysAmount = this.getDaysInMonth(year, month);
         const monthDaysSignal = computed(() => {
@@ -75,6 +76,10 @@ export class StreaksService {
                         habit: habitData.habit,
                         status: dayStatus
                     };
+
+                    if (isCurrentMonth && i + 1 === new Date().getDate()) {
+                        day.isToday = true;
+                    }
 
                     days[habitData.habit].push(day);
                 }
