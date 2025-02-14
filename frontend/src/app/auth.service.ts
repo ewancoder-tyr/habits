@@ -15,13 +15,14 @@ export class AuthService {
     public picture: string | undefined;
 
     public async getToken(): Promise<string> {
-        if (!this.needsAuthSignal) {
+        if (!this.needsAuthSignal()) {
             return this.token;
         }
 
         await this.lock.wait();
         try {
-            if (!this.needsAuthSignal) {
+            if (!this.needsAuthSignal()) {
+                console.log('Returned cached token after waiting for a lock.');
                 return this.token;
             }
 
