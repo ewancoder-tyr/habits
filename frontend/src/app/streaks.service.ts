@@ -131,7 +131,7 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                     })
                     .pipe(
                         tap(habit => {
-                            const existing = this.data.value.find(x => x.name == habit.name);
+                            const existing = this.data.value.find(x => x.name == habitId);
                             this.data.value.splice(this.data.value.indexOf(existing!), 1);
                             this.data.value.push(habit);
                             this.data.next(this.data.value);
@@ -200,8 +200,12 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                         }
                     )
                     .pipe(
-                        switchMap(habitId =>
-                            this.http.get<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habitId}`)
+                        switchMap((created: any) =>
+                            this.http.get<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${created.id}`, {
+                                headers: {
+                                    Authorization: `Bearer ${token}`
+                                }
+                            })
                         )
                     )
                     .pipe(
