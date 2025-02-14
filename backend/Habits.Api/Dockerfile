@@ -16,6 +16,8 @@ RUN apt-get update \
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Habits.Api/Habits.Api.csproj", "Habits.Api/"]
+COPY ["Directory.Build.props", "./"]
+COPY ["Directory.Packages.props", "./"]
 RUN dotnet restore "./Habits.Api/Habits.Api.csproj"
 COPY . .
 WORKDIR "/src/Habits.Api"
