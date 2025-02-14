@@ -1,4 +1,5 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Routing.Constraints;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -9,7 +10,18 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     //options.SerializerOptions.DefaultBufferSize = 16_000_000; // Probably needed for fast path.
 });
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.Configure<RouteOptions>(options =>
+{
+    // Needed for Swagger.
+    options.SetParameterPolicy<RegexInlineRouteConstraint>("regex");
+});
+
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 Habit[] habits = [
     new Habit {
