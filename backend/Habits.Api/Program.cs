@@ -116,7 +116,7 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
     habits.Add(habit);
     return TypedResults.Created("/api/habits", new Created(habit.Name));
 });
-habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, CreateHabit body, ClaimsPrincipal user) =>
+habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> (string id, CreateHabit body, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -127,6 +127,9 @@ habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, CreateHabit
     var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
+
+    if (body.Name != habit.Name && habits.Exists(habit => habit.Name == body.Name))
+        return TypedResults.BadRequest("Habit with this name already exists.");
 
     habit.Name = body.Name;
     habit.LengthDays = body.LengthDays;
