@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Annotations;
 
 var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -19,6 +20,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.EnableAnnotations();
+
     // Show a field for entering access token.
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -89,6 +92,8 @@ habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
 });
 habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> (Habit body, ClaimsPrincipal user) =>
 {
+    body.Days = []; // Do not accept it as an input.
+
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
 
@@ -156,12 +161,14 @@ await app.RunAsync();
 
 internal sealed class Habit
 {
+    [SwaggerSchema(ReadOnly = true)]
     public string Id { get; set; } = null!;
 
     public required string Name { get; set; }
 
     public required int LengthDays { get; set; }
 
+    [SwaggerSchema(ReadOnly = true)]
     public HashSet<int> Days { get; set; } = [];
 }
 
