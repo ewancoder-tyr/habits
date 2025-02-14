@@ -1,0 +1,6 @@
+@Api = http://localhost:5000/api
+
+GET {{Api}}/habits/
+Accept: application/json
+
+###
