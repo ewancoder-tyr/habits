@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Swashbuckle.AspNetCore.Annotations;
 
 var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -21,8 +20,6 @@ builder.Services.AddCors();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.EnableAnnotations();
-
     // Show a field for entering access token.
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -95,10 +92,8 @@ habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
 
     return [];
 });
-habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> (Habit body, ClaimsPrincipal user) =>
+habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> (CreateHabit body, ClaimsPrincipal user) =>
 {
-    body.Days = []; // Do not accept it as an input.
-
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
 
@@ -111,9 +106,16 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
     if (habits.Exists(habit => habit.Name == body.Name))
         return TypedResults.BadRequest("Habit with this name already exists.");
 
-    body.Id = Guid.NewGuid().ToString();
-    habits.Add(body);
-    return TypedResults.Created("/api/habits", new Created(body.Id));
+    var habit = new Habit
+    {
+        Id = Guid.NewGuid().ToString(),
+        Name = body.Name,
+        LengthDays = body.LengthDays,
+        Days = []
+    };
+
+    habits.Add(habit);
+    return TypedResults.Created("/api/habits", new Created(habit.Id));
 });
 habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, Habit body, ClaimsPrincipal user) =>
 {
@@ -164,21 +166,26 @@ habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string i
 
 await app.RunAsync();
 
+internal sealed class CreateHabit
+{
+    public required string Name { get; set; }
+    public required int LengthDays { get; set; }
+}
+
 internal sealed class Habit
 {
-    [SwaggerSchema(ReadOnly = true)]
-    public string Id { get; set; } = null!;
+    public required string Id { get; set; } = null!;
 
     public required string Name { get; set; }
 
     public required int LengthDays { get; set; }
 
-    [SwaggerSchema(ReadOnly = true)]
-    public HashSet<int> Days { get; set; } = [];
+    public required HashSet<int> Days { get; set; } = [];
 }
 
 [JsonSerializable(typeof(List<Habit>))]
 [JsonSerializable(typeof(Created))]
+[JsonSerializable(typeof(CreateHabit))]
 internal partial class SerializerContext : JsonSerializerContext
 {
 }
