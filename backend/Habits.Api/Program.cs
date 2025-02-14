@@ -1,6 +1,9 @@
 ﻿using System.Text.Json.Serialization;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Routing.Constraints;
+using Microsoft.IdentityModel.Tokens;
 
+var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -18,6 +21,23 @@ builder.Services.Configure<RouteOptions>(options =>
     options.SetParameterPolicy<RegexInlineRouteConstraint>("regex");
 });
 
+builder.Services.AddAuthentication()
+    .AddJwtBearer(o =>
+    {
+        o.TokenValidationParameters.ValidIssuer = "https://accounts.google.com";
+        o.TokenValidationParameters.ValidAudience = GoogleClient;
+        o.TokenValidationParameters.SignatureValidator = delegate (string token, TokenValidationParameters parameters)
+        {
+            GoogleJsonWebSignature.ValidateAsync(token, new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = [GoogleClient]
+            });
+
+            return new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
+        };
+    });
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -25,7 +45,8 @@ app.UseSwaggerUI();
 
 Habit[] habits = [];
 
-var habitsGroup = app.MapGroup("/api/habits");
+var apis = app.MapGroup("/").RequireAuthorization();
+var habitsGroup = apis.MapGroup("/api/habits");
 habitsGroup.MapGet("/", () => habits);
 
 await app.RunAsync();
