@@ -92,6 +92,20 @@ habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
 
     return [];
 });
+habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> (string habitId, ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
+
+    if (!db.TryGetValue($"google_{userId}", out var habits))
+        return TypedResults.NotFound();
+
+    var habit = habits.Find(habit => habit.Name == habitId);
+    if (habit is null)
+        return TypedResults.NotFound();
+
+    return TypedResults.Ok(habit);
+});
 habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> (CreateHabit body, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
