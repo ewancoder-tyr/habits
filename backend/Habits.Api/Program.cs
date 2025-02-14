@@ -79,6 +79,32 @@ app.UseCors(builder => builder
     .WithHeaders("Authorization", "Content-Type"));
 
 var db = new Dictionary<string, List<Habit>>();
+if (!Directory.Exists("data"))
+    Directory.CreateDirectory("data");
+if (File.Exists("data/db"))
+{
+    var content = await File.ReadAllTextAsync("data/db");
+    db = JsonSerializer.Deserialize(content, SerializerContext.Default.DictionaryStringListHabit);
+    if (db is null) throw new InvalidOperationException();
+}
+
+var saver = Task.Run(async () =>
+{
+    while (true)
+    {
+        try
+        {
+            var serialized = JsonSerializer.Serialize(db, SerializerContext.Default.DictionaryStringListHabit);
+            await File.WriteAllTextAsync("data/db", serialized);
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine(exception);
+        }
+
+        await Task.Delay(TimeSpan.FromMinutes(1));
+    }
+});
 
 var apis = app.MapGroup("/").RequireAuthorization();
 var habitsGroup = apis.MapGroup("/api/habits");
@@ -200,6 +226,7 @@ internal sealed class Habit
 [JsonSerializable(typeof(List<Habit>))]
 [JsonSerializable(typeof(Created))]
 [JsonSerializable(typeof(CreateHabit))]
+[JsonSerializable(typeof(Dictionary<string, List<Habit>>))]
 internal partial class SerializerContext : JsonSerializerContext
 {
 }

@@ -16,6 +16,8 @@ services:
   habits-api:
     image: ghcr.io/ewancoder/habits-api:main
     container_name: habits-api
+    volumes:
+      - /data/habits/data:/app/data
     restart: unless-stopped
     mem_limit: 1g
     mem_reservation: 750m
