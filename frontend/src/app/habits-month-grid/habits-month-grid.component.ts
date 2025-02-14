@@ -37,7 +37,7 @@ export class HabitsMonthGridComponent implements OnInit {
         const newDays = prompt('New length:');
         if (newName && newDays) {
             this.service.updateHabit(habit, {
-                habit: newName,
+                name: newName,
                 lengthDays: +newDays
             });
         }

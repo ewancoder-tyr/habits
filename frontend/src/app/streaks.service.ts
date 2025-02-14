@@ -1,60 +1,247 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
+import { HttpClient, HttpUserEvent } from '@angular/common/http';
+import { AuthService } from './auth.service';
+import { BehaviorSubject, flatMap, from, map, mergeMap, Observable, of, switchMap, tap } from 'rxjs';
+
+interface IHabitStreakRepository {
+    data$: Observable<HabitStreakData[]>;
+
+    initialize(): Observable<HabitStreakData[]>;
+    create(habit: string, length: number): Observable<HabitStreakData>;
+    update(habitId: string, habit: UpdateHabit): Observable<HabitStreakData>;
+    markDay(habit: string, day: number): Observable<HabitStreakData>;
+    unmarkDay(habit: string, day: number): Observable<HabitStreakData>;
+}
+
+@Injectable({ providedIn: 'root' })
+class LocalHabitStreakRepository implements IHabitStreakRepository {
+    private localStorageKey = 'ewancoder_streaks_data';
+
+    private readonly data = new BehaviorSubject<HabitStreakData[]>([]);
+    get data$(): Observable<HabitStreakData[]> {
+        return this.data.asObservable();
+    }
+
+    initialize(): Observable<HabitStreakData[]> {
+        const data = localStorage.getItem(this.localStorageKey) ?? '[]';
+        const parsed = JSON.parse(data) as HabitStreakData[];
+        this.data.next(parsed);
+        return of(parsed);
+    }
+
+    update(habitId: string, habit: UpdateHabit): Observable<HabitStreakData> {
+        const found = this.data.value.find(s => s.name === habitId);
+        if (!found) throw new Error('Habit for the update was not found.');
+
+        found.name = habit.name;
+        found.lengthDays = habit.lengthDays;
+
+        this.saveData();
+        return of(found);
+    }
+
+    markDay(habit: string, day: number): Observable<HabitStreakData> {
+        const streak = this.data.value.find(s => s.name === habit);
+        if (!streak) throw new Error('Streak for marking a day was not found.');
+
+        const found = streak.days.find(d => d === day);
+        if (!found) {
+            streak.days.push(day);
+        }
+
+        this.saveData();
+        return of(streak);
+    }
+
+    unmarkDay(habit: string, day: number): Observable<HabitStreakData> {
+        const streak = this.data.value.find(s => s.name === habit);
+        if (!streak) throw new Error('Streak for marking a day was not found.');
+
+        const found = streak.days.find(d => d === day);
+        if (found) {
+            streak.days.splice(streak.days.indexOf(found), 1);
+        }
+
+        this.saveData();
+        return of(streak);
+    }
+
+    create(habit: string, length: number): Observable<HabitStreakData> {
+        const newHabit = {
+            name: habit,
+            lengthDays: length,
+            days: []
+        };
+        this.data.value.push(newHabit);
+        this.saveData();
+        return of(newHabit);
+    }
+
+    private saveData() {
+        localStorage.setItem(this.localStorageKey, JSON.stringify(this.data.value));
+        this.data.next(this.data.value);
+    }
+}
+
+@Injectable({ providedIn: 'root' })
+class ApiHabitStreakRepository implements IHabitStreakRepository {
+    private readonly data = new BehaviorSubject<HabitStreakData[]>([]);
+    get data$(): Observable<HabitStreakData[]> {
+        return this.data.asObservable();
+    }
+
+    constructor(
+        private auth: AuthService,
+        private http: HttpClient
+    ) {}
+
+    initialize(): Observable<HabitStreakData[]> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http
+                    .get<HabitStreakData[]>('https://api.habits.typingrealm.com/api/habits', {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    })
+                    .pipe(
+                        tap(habits => {
+                            this.data.next(habits);
+                        })
+                    )
+            )
+        );
+    }
+
+    update(habitId: string, habit: UpdateHabit): Observable<HabitStreakData> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http
+                    .put<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habitId}`, habit, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    })
+                    .pipe(
+                        tap(habit => {
+                            const existing = this.data.value.find(x => x.name == habit.name);
+                            this.data.value.splice(this.data.value.indexOf(existing!), 1);
+                            this.data.value.push(habit);
+                            this.data.next(this.data.value);
+                        })
+                    )
+            )
+        );
+    }
+
+    markDay(habit: string, day: number): Observable<HabitStreakData> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http
+                    .post<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habit}/days/${day}`, null, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    })
+                    .pipe(
+                        tap(habit => {
+                            const existing = this.data.value.find(x => x.name == habit.name);
+                            this.data.value.splice(this.data.value.indexOf(existing!), 1);
+                            this.data.value.push(habit);
+                            this.data.next(this.data.value);
+                        })
+                    )
+            )
+        );
+    }
+
+    unmarkDay(habit: string, day: number): Observable<HabitStreakData> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http
+                    .delete<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habit}/days/${day}`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    })
+                    .pipe(
+                        tap(habit => {
+                            const existing = this.data.value.find(x => x.name === habit.name);
+                            this.data.value.splice(this.data.value.indexOf(existing!), 1);
+                            this.data.value.push(habit);
+                            this.data.next(this.data.value);
+                        })
+                    )
+            )
+        );
+    }
+
+    create(habit: string, length: number): Observable<HabitStreakData> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http
+                    .post<string>(
+                        'https://api.habits.typingrealm.com/api/habits',
+                        {
+                            name: habit,
+                            lengthDays: length
+                        },
+                        {
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            }
+                        }
+                    )
+                    .pipe(
+                        switchMap(habitId =>
+                            this.http.get<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habitId}`)
+                        )
+                    )
+                    .pipe(
+                        tap(habit => {
+                            this.data.value.push(habit);
+                            this.data.next(this.data.value);
+                        })
+                    )
+            )
+        );
+    }
+}
 
 @Injectable({ providedIn: 'root' })
 export class StreaksService {
     private earliestSupportedYear = 2020;
-    private localStorageKey = 'ewancoder_streaks_data';
-    private data: HabitStreakData[];
     public streaksSignal = signal<HabitStreak[]>([]);
 
-    constructor() {
-        const data = localStorage.getItem(this.localStorageKey) ?? '[]';
-        this.data = JSON.parse(data) as HabitStreakData[];
-        this.recalculateStreaks();
+    private repo: IHabitStreakRepository;
+
+    constructor(
+        private localRepo: LocalHabitStreakRepository,
+        private apiRepo: ApiHabitStreakRepository,
+        private auth: AuthService,
+        private http: HttpClient
+    ) {
+        this.repo = apiRepo;
+
+        this.repo.data$.subscribe(streaks => this.recalculateStreaks(streaks));
+        this.repo.initialize().subscribe();
     }
 
-    public setDays(habit: string, days: number) {
-        const found = this.data.find(s => s.habit === habit);
-        found!.lengthDays = days;
-
-        this.saveData();
-        this.recalculateStreaks();
+    public updateHabit(id: string, update: UpdateHabit) {
+        this.repo.update(id, update).subscribe();
     }
 
-    public updateHabit(habit: string, update: UpdateHabit) {
-        const found = this.data.find(s => s.habit === habit);
-        found!.habit = update.habit;
-        found!.lengthDays = update.lengthDays;
-
-        this.saveData();
-        this.recalculateStreaks();
+    public mark(day: StreakDay) {
+        this.repo.markDay(day.habit, day.id).subscribe();
     }
 
-    public toggle(day: StreakDay) {
-        const streak = this.data.find(s => s.habit === day.habit);
-        const found = streak!.days.find(d => d === day.id);
-        if (found) {
-            streak!.days.splice(streak!.days.indexOf(found), 1);
-        } else {
-            streak!.days.push(day.id);
-        }
-
-        this.saveData();
-        this.recalculateStreaks();
+    public unmark(day: StreakDay) {
+        this.repo.unmarkDay(day.habit, day.id).subscribe();
     }
 
     public createHabit(habit: string, length: number) {
-        const streak: HabitStreakData = {
-            habit: habit,
-            days: [],
-            lengthDays: length
-        };
-
-        this.data.push(streak);
-
-        this.saveData();
-        this.recalculateStreaks();
+        this.repo.create(habit, length).subscribe();
     }
 
     public getMonthDaysSignal(year: number, month: number) {
@@ -118,13 +305,15 @@ export class StreaksService {
         return new Date(year, month + 1, 0).getDate();
     }
 
-    private recalculateStreaks() {
-        const streaks = this.data.map(streak => ({
-            habit: streak.habit,
-            days: this.calculateDays(streak.days, streak.lengthDays)
-        }));
+    private recalculateStreaks(streaks: HabitStreakData[]) {
+        const calculated = streaks
+            .map(streak => ({
+                habit: streak.name,
+                days: this.calculateDays(streak.days, streak.lengthDays)
+            }))
+            .sort((a, b) => a.habit.localeCompare(b.habit));
 
-        this.streaksSignal.set(streaks);
+        this.streaksSignal.set(calculated);
     }
 
     private calculateDays(days: number[], lengthDays: number) {
@@ -141,10 +330,6 @@ export class StreaksService {
 
         return resultDays;
     }
-
-    private saveData() {
-        localStorage.setItem(this.localStorageKey, JSON.stringify(this.data));
-    }
 }
 
 export interface HabitStreak {
@@ -158,13 +343,13 @@ export enum DayStatus {
     Inherited = 2
 }
 
-interface HabitStreakData {
-    habit: string;
-    days: number[];
+interface UpdateHabit {
+    name: string;
     lengthDays: number;
 }
 
-interface UpdateHabit {
-    habit: string;
+interface HabitStreakData {
+    name: string;
     lengthDays: number;
+    days: number[];
 }

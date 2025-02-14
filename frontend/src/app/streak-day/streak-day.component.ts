@@ -8,7 +8,7 @@ import { DayStatus, StreaksService } from '../streaks.service';
     styleUrl: './streak-day.component.scss',
     host: {
         '[class]': 'getClass()',
-        '(click)': 'service.toggle(this.day)',
+        '(click)': 'toggle(this.day)',
         '[class.today]': 'day.isToday'
     },
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -17,6 +17,14 @@ export class StreakDayComponent {
     @Input({ required: true }) day!: StreakDay;
 
     constructor(private service: StreaksService) {}
+
+    protected toggle(day: StreakDay) {
+        if (day.status === 1) {
+            this.service.unmark(day);
+        } else {
+            this.service.mark(day);
+        }
+    }
 
     protected getClass() {
         switch (this.day.status) {
