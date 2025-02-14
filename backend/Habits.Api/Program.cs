@@ -23,12 +23,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-Habit[] habits = [
-    new Habit {
-        Id = "id",
-        Name = "name"
-    }
-];
+Habit[] habits = [];
 
 var habitsGroup = app.MapGroup("/api/habits");
 habitsGroup.MapGet("/", () => habits);
@@ -40,6 +35,10 @@ public sealed class Habit
     public string Id { get; set; } = null!;
 
     public required string Name { get; set; }
+
+    public required int LengthDays { get; set; }
+
+    public required IEnumerable<int> Days { get; set; } = [];
 }
 
 [JsonSerializable(typeof(Habit[]))]
