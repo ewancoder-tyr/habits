@@ -1,0 +1,23 @@
+:host {
+  text-align: center;
+}
+
+.modes {
+  display: flex;
+  flex-direction: row;
+  text-align: center;
+  justify-content: center;
+}
+
+.mode-choice {
+  border: 1px solid #ccc;
+  padding: 20px;
+  width: 300px;
+  margin: 10px;
+  cursor: pointer;
+  background-color: rgba(200, 200, 200, 0.1);
+}
+
+.mode-choice:hover {
+  background-color: rgba(200, 240, 200, 0.25);
+}

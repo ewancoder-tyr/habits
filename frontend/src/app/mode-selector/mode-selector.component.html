@@ -1,0 +1,13 @@
+<h1>Select mode</h1>
+<div class="modes">
+  <div class="mode-choice" (click)="selectLocal()">
+    <h2>Local</h2>
+    <p>Changes are saved locally in your browser.</p>
+    <p>No need to authenticate, but it will only work in one browser and data will be lost if you uninstall it.</p>
+  </div>
+  <div class="mode-choice" (click)="selectApi()">
+    <h2>Server</h2>
+    <p>Changes are saved on the server.</p>
+    <p>All your data is synchronized between any devices and browsers, but you need to authenticate.</p>
+  </div>
+</div>

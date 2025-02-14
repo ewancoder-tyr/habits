@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, signal, ViewChild } from '@angular/core';
 import { initializeGoogleAuth } from '../google-auth';
 import { AuthService } from '../auth.service';
+import { Mode, StreaksService } from '../streaks.service';
 
 @Component({
     selector: 'hab-auth',
@@ -16,9 +17,12 @@ export class AuthComponent {
         initializeGoogleAuth(this.authElement.nativeElement);
     }
 
-    constructor(protected auth: AuthService) {
+    constructor(
+        protected auth: AuthService,
+        private streaksService: StreaksService
+    ) {
         effect(() => {
-            if (auth.needsAuthSignal()) this.auth.getToken();
+            if (auth.needsAuthSignal() && streaksService.modeSignal() === Mode.Server) this.auth.getToken();
         });
     }
 }

@@ -2,7 +2,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
 import { HttpClient, HttpUserEvent } from '@angular/common/http';
 import { AuthService } from './auth.service';
-import { BehaviorSubject, flatMap, from, map, mergeMap, Observable, of, switchMap, tap } from 'rxjs';
+import { BehaviorSubject, flatMap, from, map, mergeMap, Observable, of, Subscription, switchMap, tap } from 'rxjs';
 
 interface IHabitStreakRepository {
     data$: Observable<HabitStreakData[]>;
@@ -12,6 +12,12 @@ interface IHabitStreakRepository {
     update(habitId: string, habit: UpdateHabit): Observable<HabitStreakData>;
     markDay(habit: string, day: number): Observable<HabitStreakData>;
     unmarkDay(habit: string, day: number): Observable<HabitStreakData>;
+}
+
+export enum Mode {
+    Unset = 0,
+    Local = 1,
+    Server = 2
 }
 
 @Injectable({ providedIn: 'root' })
@@ -214,7 +220,10 @@ export class StreaksService {
     private earliestSupportedYear = 2020;
     public streaksSignal = signal<HabitStreak[]>([]);
 
-    private repo: IHabitStreakRepository;
+    private repo: IHabitStreakRepository | undefined;
+    private subscription: Subscription | undefined;
+
+    public modeSignal = signal<Mode>(Mode.Unset);
 
     constructor(
         private localRepo: LocalHabitStreakRepository,
@@ -222,26 +231,56 @@ export class StreaksService {
         private auth: AuthService,
         private http: HttpClient
     ) {
-        this.repo = apiRepo;
+        this.reloadDataSource();
+    }
 
-        this.repo.data$.subscribe(streaks => this.recalculateStreaks(streaks));
-        this.repo.initialize().subscribe();
+    private reloadDataSource() {
+        this.repo = undefined;
+        if (this.subscription) {
+            this.subscription.unsubscribe();
+            this.subscription = undefined;
+        }
+
+        const mode = this.getMode();
+        this.modeSignal.set(mode);
+        if (mode === Mode.Server) this.repo = this.apiRepo;
+        if (mode === Mode.Local) this.repo = this.localRepo;
+        if (this.repo) {
+            this.subscription = this.repo.data$.subscribe(streaks => this.recalculateStreaks(streaks));
+            this.repo.initialize().subscribe();
+        }
+    }
+
+    private getMode() {
+        const mode = localStorage.getItem('ewancoder_habits_mode');
+        if (mode === 'local') return Mode.Local;
+        if (mode === 'server') return Mode.Server;
+        return Mode.Unset;
+    }
+
+    public setMode(mode: Mode) {
+        let modeString = 'unset';
+        if (mode === Mode.Local) modeString = 'local';
+        if (mode === Mode.Server) modeString = 'server';
+        localStorage.setItem('ewancoder_habits_mode', modeString);
+
+        this.reloadDataSource();
     }
 
     public updateHabit(id: string, update: UpdateHabit) {
-        this.repo.update(id, update).subscribe();
+        this.repo?.update(id, update).subscribe();
     }
 
     public mark(day: StreakDay) {
-        this.repo.markDay(day.habit, day.id).subscribe();
+        this.repo?.markDay(day.habit, day.id).subscribe();
     }
 
     public unmark(day: StreakDay) {
-        this.repo.unmarkDay(day.habit, day.id).subscribe();
+        this.repo?.unmarkDay(day.habit, day.id).subscribe();
     }
 
     public createHabit(habit: string, length: number) {
-        this.repo.create(habit, length).subscribe();
+        this.repo?.create(habit, length).subscribe();
     }
 
     public getMonthDaysSignal(year: number, month: number) {

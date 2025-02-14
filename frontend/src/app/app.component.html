@@ -1,9 +1,14 @@
+@let mode = streaksService.modeSignal();
 @let needsAuth = auth.needsAuthSignal();
+<hab-auth [class.hidden]="!needsAuth || mode !== 2"></hab-auth>
 
-<hab-auth [class.hidden]="!needsAuth"></hab-auth>
-@if (needsAuth) {
-  <router-outlet />
+@if (streaksService.modeSignal() === 0) {
+  <hab-mode-selector></hab-mode-selector>
 } @else {
-  <img class="avatar" [src]="auth.picture" />
-  <router-outlet />
+  @if (needsAuth) {
+    <router-outlet />
+  } @else {
+    <img class="avatar" [src]="auth.picture" />
+    <router-outlet />
+  }
 }
