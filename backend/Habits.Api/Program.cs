@@ -17,6 +17,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     //options.SerializerOptions.DefaultBufferSize = 16_000_000; // Probably needed for fast path.
 });
 
+builder.Services.AddCors();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -75,6 +76,10 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseCors(builder => builder
+    .WithOrigins("http://localhost:4200", "https://habits.typingrealm.com")
+    .AllowAnyMethod()
+    .WithHeaders("Authorization", "Content-Type"));
 
 var db = new Dictionary<string, List<Habit>>();
 
