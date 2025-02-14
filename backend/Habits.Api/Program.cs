@@ -108,16 +108,15 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
 
     var habit = new Habit
     {
-        Id = Guid.NewGuid().ToString(),
         Name = body.Name,
         LengthDays = body.LengthDays,
         Days = []
     };
 
     habits.Add(habit);
-    return TypedResults.Created("/api/habits", new Created(habit.Id));
+    return TypedResults.Created("/api/habits", new Created(habit.Name));
 });
-habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, Habit body, ClaimsPrincipal user) =>
+habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, CreateHabit body, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -125,7 +124,7 @@ habitsGroup.MapPut("/{id}", Results<NotFound, Ok<Habit>> (string id, Habit body,
     if (!db.TryGetValue($"google_{userId}", out var habits))
         return TypedResults.NotFound();
 
-    var habit = habits.Find(habit => habit.Id == id);
+    var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
 
@@ -141,7 +140,7 @@ habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string id,
     if (!db.TryGetValue($"google_{userId}", out var habits))
         return TypedResults.NotFound();
 
-    var habit = habits.Find(habit => habit.Id == id);
+    var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
 
@@ -156,7 +155,7 @@ habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string i
     if (!db.TryGetValue($"google_{userId}", out var habits))
         return TypedResults.NotFound();
 
-    var habit = habits.Find(habit => habit.Id == id);
+    var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
 
@@ -174,8 +173,6 @@ internal sealed class CreateHabit
 
 internal sealed class Habit
 {
-    public required string Id { get; set; } = null!;
-
     public required string Name { get; set; }
 
     public required int LengthDays { get; set; }
