@@ -2,10 +2,23 @@
   display: flex;
   flex-direction: column;
 }
+
 .avatar {
   border-radius: 50%;
   margin: 0 auto;
 }
+
 .hidden {
   display: none;
+}
+
+.change-mode {
+  cursor: pointer;
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  padding: 5px;
+  background-color: #cdc;
+  margin: 20px;
+  position: absolute;
 }

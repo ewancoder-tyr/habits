@@ -17,4 +17,8 @@ export class AppComponent {
         protected auth: AuthService,
         protected streaksService: StreaksService
     ) {}
+
+    resetMode() {
+        this.streaksService.setMode(Mode.Unset);
+    }
 }

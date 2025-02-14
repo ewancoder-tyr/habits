@@ -1,3 +1,5 @@
+<img src="/favicon.ico" class="change-mode" (click)="resetMode()" />
+
 @let mode = streaksService.modeSignal();
 @let needsAuth = auth.needsAuthSignal();
 <hab-auth [class.hidden]="!needsAuth || mode !== 2"></hab-auth>
