@@ -4,6 +4,7 @@ using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -16,7 +17,34 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Show a field for entering access token.
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Access token",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // Send this access token value in every request.
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type  = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            []
+        }
+    });
+});
 builder.Services.Configure<RouteOptions>(options =>
 {
     // Needed for Swagger.
@@ -65,7 +93,10 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
 
     if (!db.TryGetValue($"google_{userId}", out var habits))
-        return TypedResults.NotFound();
+    {
+        habits = new List<Habit>();
+        db.Add($"google_{userId}", habits);
+    }
 
     if (habits.Exists(habit => habit.Name == body.Name))
         return TypedResults.BadRequest("Habit with this name already exists.");
@@ -135,6 +166,7 @@ internal sealed class Habit
 }
 
 [JsonSerializable(typeof(List<Habit>))]
+[JsonSerializable(typeof(Created))]
 internal partial class SerializerContext : JsonSerializerContext
 {
 }
