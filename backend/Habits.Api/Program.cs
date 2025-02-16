@@ -3,6 +3,8 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.IdentityModel.Tokens;
@@ -24,7 +26,68 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 builder.Services.AddCors();
 
-builder.Services.AddAuthentication()
+builder.Services.AddAuthentication("AuthenticationScheme")
+    .AddPolicyScheme("AuthenticationScheme", JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            if (context.Request.Cookies.ContainsKey("AuthSession"))
+                return CookieAuthenticationDefaults.AuthenticationScheme;
+
+            return JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
+    .AddCookie(options =>
+    {
+        //var cookieExpiration = TimeSpan.FromDays(1.5);
+        var cookieExpiration = TimeSpan.FromMinutes(5);
+
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Name = "AuthSession";
+        options.ExpireTimeSpan = cookieExpiration;
+        options.SlidingExpiration = true;
+        options.Events.OnCheckSlidingExpiration = context =>
+        {
+            if (context.ShouldRenew)
+            {
+                var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
+
+                // If this cookie expires - we need to go and grab another JWT.
+                context.HttpContext.Response.Cookies.Append(
+                    "AuthInfo",
+                    string.Empty,
+                    new CookieOptions
+                    {
+                        HttpOnly = false,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = DateTimeOffset.UtcNow.Add(expirationTime)
+                    });
+            }
+
+            return Task.CompletedTask;
+        };
+        options.Events.OnSignedIn = context =>
+        {
+            var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
+
+            // If this cookie expires - we need to go and grab another JWT.
+            context.HttpContext.Response.Cookies.Append(
+                "AuthInfo",
+                string.Empty,
+                new CookieOptions
+                {
+                    HttpOnly = false,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTimeOffset.UtcNow.Add(expirationTime)
+                });
+
+            return Task.CompletedTask;
+        };
+    })
     .AddJwtBearer(o =>
     {
         o.TokenValidationParameters.ValidIssuer = "https://accounts.google.com";
@@ -37,6 +100,21 @@ builder.Services.AddAuthentication()
             });
 
             return new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
+        };
+
+        o.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal ?? throw new InvalidOperationException("No principal.");
+                var identity = new ClaimsIdentity(principal.Claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var authProperties = new AuthenticationProperties { IsPersistent = true };
+
+                await context.HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(identity),
+                    authProperties);
+            }
         };
     });
 builder.Services.AddAuthorization();
