@@ -58,7 +58,7 @@ builder.Services.AddAuthentication("AuthenticationScheme")
                 // If this cookie expires - we need to go and grab another JWT.
                 context.HttpContext.Response.Cookies.Append(
                     "AuthInfo",
-                    string.Empty,
+                    context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty,
                     new CookieOptions
                     {
                         HttpOnly = false,
@@ -77,7 +77,7 @@ builder.Services.AddAuthentication("AuthenticationScheme")
             // If this cookie expires - we need to go and grab another JWT.
             context.HttpContext.Response.Cookies.Append(
                 "AuthInfo",
-                string.Empty,
+                context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty,
                 new CookieOptions
                 {
                     HttpOnly = false,
