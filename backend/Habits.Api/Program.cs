@@ -29,6 +29,7 @@ builder.Services.AddCors();
 builder.Services.AddAuthentication("AuthenticationScheme")
     .AddPolicyScheme("AuthenticationScheme", JwtBearerDefaults.AuthenticationScheme, options =>
     {
+        options.ForwardSignOut = CookieAuthenticationDefaults.AuthenticationScheme;
         options.ForwardDefaultSelector = context =>
         {
             if (context.Request.Cookies.ContainsKey("AuthSession"))
@@ -199,6 +200,15 @@ var saver = Task.Run(async () =>
 var apis = app.MapGroup("/").RequireAuthorization();
 var habitsGroup = apis.MapGroup("/api/habits")
     .WithTags("Habits");
+
+var authGroup = apis.MapGroup("/api/auth").WithTags("Authentication");
+authGroup.MapPost("/logout", async (HttpResponse _, HttpContext context) =>
+{
+    await context.SignOutAsync();
+    context.Response.Cookies.Delete("AuthInfo");
+})
+    .WithSummary("Logout")
+    .WithDescription("Signs out and deletes session cookie.");
 
 habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
 {
