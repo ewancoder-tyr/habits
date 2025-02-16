@@ -147,6 +147,7 @@ app.MapScalarApiReference("docs");
 app.UseCors(builder => builder
     .WithOrigins("http://localhost:4200", "https://habits.typingrealm.com")
     .AllowAnyMethod()
+    .AllowCredentials()
     .WithHeaders("Authorization", "Content-Type"));
 
 var logger = app.Services.GetRequiredService<ILogger<HabitsApp>>();
