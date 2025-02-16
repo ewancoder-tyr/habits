@@ -2,14 +2,14 @@
 using System.Text.Json.Serialization;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Routing.Constraints;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 
 var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
+builder.Services.AddOpenApi();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -19,40 +19,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddCors();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    // Show a field for entering access token.
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "Access token",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    // Send this access token value in every request.
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type  = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            []
-        }
-    });
-});
-builder.Services.Configure<RouteOptions>(options =>
-{
-    // Needed for Swagger.
-    options.SetParameterPolicy<RegexInlineRouteConstraint>("regex");
-});
 
 builder.Services.AddAuthentication()
     .AddJwtBearer(o =>
@@ -87,8 +53,9 @@ builder.Host.UseSerilog((context, config) =>
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+app.MapOpenApi();
+app.MapScalarApiReference("docs");
+
 app.UseCors(builder => builder
     .WithOrigins("http://localhost:4200", "https://habits.typingrealm.com")
     .AllowAnyMethod()
