@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.ComponentModel;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -110,7 +111,9 @@ var saver = Task.Run(async () =>
 });
 
 var apis = app.MapGroup("/").RequireAuthorization();
-var habitsGroup = apis.MapGroup("/api/habits");
+var habitsGroup = apis.MapGroup("/api/habits")
+    .WithTags("Habits");
+
 habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -120,8 +123,11 @@ habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
         return habits;
 
     return [];
-});
-habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> (string habitId, ClaimsPrincipal user) =>
+})
+    .WithSummary("Get all habits")
+    .WithDescription("Gets all habits for current user.");
+
+habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Identifier of the habit.")]string habitId, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -134,8 +140,11 @@ habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> (string habitId, C
         return TypedResults.NotFound();
 
     return TypedResults.Ok(habit);
-});
-habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> (CreateHabit body, ClaimsPrincipal user) =>
+})
+    .WithSummary("Get a single habit")
+    .WithDescription("Gets a single habit for current user.");
+
+habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> ([Description("A new habit information")]CreateHabit body, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -159,8 +168,11 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
     habits.Add(habit);
     needToSave = true;
     return TypedResults.Created("/api/habits", new Created(habit.Name));
-});
-habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> (string id, CreateHabit body, ClaimsPrincipal user) =>
+})
+    .WithSummary("Create a new habit")
+    .WithDescription("Creates a new habit for current user.");
+
+habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([Description("Habit identifier. Same as the habit's name.")]string id, [Description("Habit information for an update.")]CreateHabit body, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -179,8 +191,11 @@ habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> (st
     habit.LengthDays = body.LengthDays;
     needToSave = true;
     return TypedResults.Ok(habit);
-});
-habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string id, int day, ClaimsPrincipal user) =>
+})
+    .WithSummary("Update a habit")
+    .WithDescription("Updates information of the habit.");
+
+habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to mark, counted from 2020.")]int day, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -195,8 +210,11 @@ habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string id,
     habit.Days.Add(day);
     needToSave = true;
     return TypedResults.Ok(habit);
-});
-habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string id, int day, ClaimsPrincipal user) =>
+})
+    .WithSummary("Mark a day")
+    .WithDescription("Marks a day as if we did the habit on that day.");
+
+habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to unmark, counted from 2020.")]int day, ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
@@ -211,22 +229,27 @@ habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> (string i
     habit.Days.Remove(day);
     needToSave = true;
     return TypedResults.Ok(habit);
-});
+})
+    .WithSummary("Unmark a day")
+    .WithDescription("Unmarks a day as if we did not do anything on it.");
 
 await app.RunAsync();
 
-internal sealed class CreateHabit
-{
-    public required string Name { get; set; }
-    public required int LengthDays { get; set; }
-}
+internal sealed record CreateHabit(
+    [property: Description("Name of the habit. Should be unique.")]
+    string Name,
+    [property: Description("Amount of days that we don't need to do anything after we did the habit one time.")]
+    int LengthDays);
 
 internal sealed class Habit
 {
+    [Description("Name of the habit")]
     public required string Name { get; set; }
 
+    [Description("Amount of days that we don't need to do anything after we've done the habit one time.")]
     public required int LengthDays { get; set; }
 
+    [Description("Marked days when we've actually done the habit.")]
     public required HashSet<int> Days { get; set; } = [];
 }
 
@@ -238,7 +261,9 @@ internal partial class SerializerContext : JsonSerializerContext
 {
 }
 
-internal sealed record Created(string Id);
+internal sealed record Created(
+    [property: Description("Identifier of a newly created habit. It is the same as the name of the habit.")]
+    string Id);
 
 /// <summary>
 /// A stub class for logging context.
