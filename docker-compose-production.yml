@@ -23,14 +23,3 @@ services:
     mem_reservation: 750m
     env_file:
       - /data/habits/secrets.env
-
-  habits-postgres:
-    image: postgres:17
-    container_name: habits-postgres
-    volumes:
-      - /data/habits/postgres:/var/lib/postgresql/data
-    restart: unless-stopped
-    mem_limit: 1g
-    mem_reservation: 750m
-    env_file:
-      - /data/habits/secrets.env
