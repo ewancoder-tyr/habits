@@ -30,7 +30,10 @@ var config = new TyrHostConfiguration(
     SeqUri: ReadConfig("SeqUri", string.Empty),
     SeqApiKey: ReadConfig("SeqApiKey", string.Empty),
     LogVerboseNamespace: "Habits",
-    CorsOrigins: ReadConfig("CorsOrigins", "http://localhost:4200;https://habits.typingrealm.com").Split(';'));
+    CorsOrigins: ReadConfig("CorsOrigins", "http://localhost:4200;https://habits.typingrealm.com").Split(';'))
+{
+    IsDebug = isDebug
+};
 
 await builder.ConfigureTyrApplicationBuilderAsync(config);
 

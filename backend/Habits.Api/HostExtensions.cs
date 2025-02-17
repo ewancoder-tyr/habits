@@ -26,7 +26,10 @@ public sealed record TyrHostConfiguration(
     string SeqUri,
     string SeqApiKey,
     string LogVerboseNamespace,
-    string[] CorsOrigins);
+    string[] CorsOrigins)
+{
+    public bool IsDebug { get; init; }
+}
 
 public static class HostExtensions
 {
@@ -37,7 +40,7 @@ public static class HostExtensions
         builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSchemeTransformer>());
 
         // Data protection, needed for Cookie authentication.
-#if !DEBUG
+        if (!config.IsDebug)
         {
             var certBytes = await File.ReadAllBytesAsync(config.DataProtectionCertPath);
             var cert = X509CertificateLoader.LoadPkcs12(certBytes, config.DataProtectionCertPassword);
@@ -45,7 +48,6 @@ public static class HostExtensions
                 .PersistKeysToFileSystem(new DirectoryInfo(config.DataProtectionKeysPath))
                 .ProtectKeysWithCertificate(cert);
         }
-#endif
 
         // CORS.
         builder.Services.AddCors();
@@ -139,11 +141,12 @@ public static class HostExtensions
                     .MinimumLevel.Override(config.LogVerboseNamespace, LogEventLevel.Verbose)
                     .WriteTo.Console();
 
-#if !DEBUG
-                seqConfig.WriteTo.Seq(
-                    config.SeqUri,
-                    apiKey: config.SeqApiKey);
-#endif
+                if (!config.IsDebug)
+                {
+                    seqConfig.WriteTo.Seq(
+                        config.SeqUri,
+                        apiKey: config.SeqApiKey);
+                }
             });
         }
     }
