@@ -11,7 +11,7 @@ const initializedPromise = new Promise<void>(resolve => (initializedPromiseResol
 
 export function initializeGoogleAuth(authElement: HTMLDivElement) {
     google.accounts.id.initialize({
-        client_id: '725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com',
+        client_id: '400839590162-24pngke3ov8rbi2f3forabpaufaosldg.apps.googleusercontent.com',
         context: 'signin',
         ux_mode: 'popup',
         callback: authCallback,
