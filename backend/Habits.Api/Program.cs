@@ -40,8 +40,8 @@ builder.Services.AddAuthentication("AuthenticationScheme")
     })
     .AddCookie(options =>
     {
-        //var cookieExpiration = TimeSpan.FromDays(1.5);
-        var cookieExpiration = TimeSpan.FromMinutes(5);
+        var cookieExpiration = TimeSpan.FromDays(1.8);
+        //var cookieExpiration = TimeSpan.FromMinutes(5); // For testing.
 
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
