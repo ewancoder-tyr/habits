@@ -55,18 +55,19 @@ builder.Services.AddAuthentication("AuthenticationScheme")
             if (context.ShouldRenew)
             {
                 var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
+                var expires = DateTimeOffset.UtcNow.Add(expirationTime);
 
                 // If this cookie expires - we need to go and grab another JWT.
                 context.HttpContext.Response.Cookies.Append(
                     "AuthInfo",
-                    context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty,
+                    $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
                     new CookieOptions
                     {
                         HttpOnly = false,
                         Secure = true,
                         SameSite = SameSiteMode.Strict,
                         Domain = "habits.typingrealm.com",
-                        Expires = DateTimeOffset.UtcNow.Add(expirationTime)
+                        Expires = expires
                     });
             }
 
@@ -75,18 +76,19 @@ builder.Services.AddAuthentication("AuthenticationScheme")
         options.Events.OnSignedIn = context =>
         {
             var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
+            var expires = DateTimeOffset.UtcNow.Add(expirationTime);
 
             // If this cookie expires - we need to go and grab another JWT.
             context.HttpContext.Response.Cookies.Append(
                 "AuthInfo",
-                context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty,
+                $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
                 new CookieOptions
                 {
                     HttpOnly = false,
                     Secure = true,
                     SameSite = SameSiteMode.Strict,
                     Domain = "habits.typingrealm.com",
-                    Expires = DateTimeOffset.UtcNow.Add(expirationTime)
+                    Expires = expires
                 });
 
             return Task.CompletedTask;
