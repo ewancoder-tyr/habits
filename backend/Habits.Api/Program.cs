@@ -168,6 +168,8 @@ app.UseCors(builder => builder
     .AllowAnyMethod()
     .AllowCredentials()
     .WithHeaders("Authorization", "Content-Type"));
+app.UseAuthentication();
+app.UseAuthorization();
 
 var logger = app.Services.GetRequiredService<ILogger<HabitsApp>>();
 logger.LogInformation("Starting the application");
