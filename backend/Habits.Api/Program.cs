@@ -10,29 +10,10 @@ var isDebug = false;
 isDebug = true;
 #endif
 
-string ReadConfig(string name, string? debugValue = null)
-{
-    return builder.Configuration[name]
-        ?? (isDebug ? debugValue : null)
-        ?? throw new InvalidOperationException($"Cannot read {name} from configuration.");
-}
-
-var config = new TyrHostConfiguration(
-    DataProtectionKeysPath: "/app/dataprotection",
-    DataProtectionCertPath: "dp.pfx",
-    DataProtectionCertPassword: ReadConfig("DpCertPassword", string.Empty),
-    AuthCookieName: "HabitsAuthSession",
-    CookiesDomain: ReadConfig("CookiesDomain", "habits.typingrealm.com"),
-    AuthCookieExpiration: TimeSpan.FromDays(1.8),
-    JwtIssuer: "https://accounts.google.com",
-    JwtAudience: ReadConfig("JwtAudience", "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com"),
-    SeqUri: ReadConfig("SeqUri", string.Empty),
-    SeqApiKey: ReadConfig("SeqApiKey", string.Empty),
-    LogVerboseNamespace: "Habits",
-    CorsOrigins: ReadConfig("CorsOrigins", "http://localhost:4200;https://habits.typingrealm.com").Split(';'))
-{
-    IsDebug = isDebug
-};
+var config = TyrHostConfiguration.Default(
+    builder.Configuration,
+    "Habits",
+    isDebug: isDebug);
 
 await builder.ConfigureTyrApplicationBuilderAsync(config);
 
@@ -44,9 +25,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 var app = builder.Build();
-app.ConfigureTyrApplication(config);
 
 var logger = app.Services.GetRequiredService<ILogger<HabitsApp>>();
+
+app.ConfigureTyrApplication(config, logger);
 logger.LogInformation("Starting the application");
 
 var needToSave = false;
@@ -243,5 +225,5 @@ internal sealed record Created(
 /// <summary>
 /// A stub class for logging context.
 /// </summary>
-internal sealed record HabitsApp();
+public sealed record HabitsApp();
 

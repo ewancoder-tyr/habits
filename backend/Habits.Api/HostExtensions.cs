@@ -43,9 +43,63 @@ public sealed record TyrHostConfiguration(
     string SeqUri,
     string SeqApiKey,
     string LogVerboseNamespace,
-    string[] CorsOrigins)
+    string[] CorsOrigins,
+    bool UseTyrCorsOrigins,
+    string Environment)
 {
     public bool IsDebug { get; init; }
+
+    /// <summary>
+    /// Mount /app/dataprotection to dataprotection folder with keys.<br />
+    /// Mount dp.pfx to pfx certificate file for dataprotection encryption.<br />
+    /// Configure:<br />
+    /// - DpCertPassword - dataprotection certificate password.<br />
+    /// - SeqUri - Seq URI for logs.<br />
+    /// - SeqApiKey - Seq API key for logs.<br />
+    /// Optional:<br />
+    /// - AuthCookieName - TyrAuthSession if not specified, shared between pet projects.<br />
+    /// - CookiesDomain - typingrealm.com if not specified, shared between pet projects.<br />
+    /// - JwtAudience - google auth client ID, shared between pet projects (main TypingRealm) if not specified.<br />
+    /// - CorsOrigins - specific list of origins, all TyR subdomains if not specified.
+    /// - Environment - if NOT set then production, otherwise dev-like (allows localhost CORS).
+    /// </summary>
+    /// <param name="appNamespace">Application namespace pattern, for logging Verbose logs.</param>
+    public static TyrHostConfiguration Default(IConfiguration configuration, string appNamespace, bool isDebug)
+    {
+        var useTyrCorsOrigins = false;
+        var corsOrigins = TryReadConfig("CorsOrigins", configuration);
+        if (corsOrigins is null)
+            useTyrCorsOrigins = true;
+
+        return new(
+            DataProtectionKeysPath: "/app/dataprotection",
+            DataProtectionCertPath: "dp.pfx",
+            DataProtectionCertPassword: isDebug ? string.Empty : ReadConfig("DpCertPassword", configuration),
+            AuthCookieName: TryReadConfig("AuthCookieName", configuration) ?? "TyrAuthSession",
+            CookiesDomain: TryReadConfig("CookiesDomain", configuration) ?? "typingrealm.com",
+            AuthCookieExpiration: TimeSpan.FromDays(1.8),
+            JwtIssuer: "https://accounts.google.com",
+            JwtAudience: TryReadConfig("JwtAudience", configuration) ?? "400839590162-24pngke3ov8rbi2f3forabpaufaosldg.apps.googleusercontent.com",
+            SeqUri: isDebug ? string.Empty : ReadConfig("SeqUri", configuration),
+            SeqApiKey: isDebug ? string.Empty : ReadConfig("SeqApiKey", configuration),
+            LogVerboseNamespace: appNamespace,
+            CorsOrigins: corsOrigins?.Split(';') ?? [],
+            UseTyrCorsOrigins: useTyrCorsOrigins,
+            Environment: TryReadConfig("Environment", configuration) ?? "Production")
+        {
+            IsDebug = isDebug
+        };
+    }
+
+    private static string? TryReadConfig(string name, IConfiguration configuration)
+    {
+        return configuration[name];
+    }
+
+    private static string ReadConfig(string name, IConfiguration configuration)
+    {
+        return TryReadConfig(name, configuration) ?? throw new InvalidOperationException($"Cannot read {name} from configuration.");
+    }
 }
 
 public static class HostExtensions
@@ -172,16 +226,36 @@ public static class HostExtensions
     }
 
     public static void ConfigureTyrApplication(
-        this WebApplication app, TyrHostConfiguration config)
+        this WebApplication app, TyrHostConfiguration config, ILogger<HabitsApp> logger)
     {
         app.MapOpenApi(); // OpenAPI document.
         app.MapScalarApiReference("docs"); // Scalar on "/docs" url.
 
-        app.UseCors(builder => builder
-            .WithOrigins(config.CorsOrigins)
-            .AllowAnyMethod()
-            .AllowCredentials() // Needed for cookies.
-            .WithHeaders("Authorization", "Content-Type"));
+        var origins = new List<string>();
+        if (config.Environment != "Production")
+        {
+            logger.LogWarning("Environment is not production, allowing localhost CORS.");
+            origins.Add("http://localhost:4200");
+            origins.Add("https://localhost:4200");
+        }
+
+        if (config.UseTyrCorsOrigins)
+            origins.Add("https://*.typingrealm.com");
+
+        origins.AddRange(config.CorsOrigins);
+
+        app.UseCors(builder =>
+        {
+            if (config.UseTyrCorsOrigins)
+                builder = builder.SetIsOriginAllowedToAllowWildcardSubdomains();
+
+            builder
+                .WithOrigins(origins.ToArray())
+                .AllowAnyMethod()
+                .AllowCredentials() // Needed for cookies.
+                .WithHeaders("Authorization", "Content-Type");
+        });
+
         app.UseAuthentication(); // Mandatory to register AFTER CORS.
         app.UseAuthorization();
     }
