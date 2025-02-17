@@ -18,7 +18,8 @@ services:
     container_name: habits-api
     volumes:
       - /data/habits/data:/app/data
-      - /data/habits/dataprotection:/home/app/.aspnet/DataProtection-Keys
+      - /data/habits/dataprotection:/app/dataprotection
+      - /root/dp.pfx:/app/dp.pfx
     restart: unless-stopped
     mem_limit: 1g
     mem_reservation: 750m

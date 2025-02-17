@@ -1,10 +1,12 @@
 ﻿using System.ComponentModel;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.IdentityModel.Tokens;
@@ -16,6 +18,13 @@ using Serilog.Events;
 var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.Services.AddOpenApi();
+
+#if !DEBUG
+var cert = X509CertificateLoader.LoadPkcs12FromFile("dp.pfx", builder.Configuration["DpCertPassword"]);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/dataprotection"))
+    .ProtectKeysWithCertificate(cert);
+#endif
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
