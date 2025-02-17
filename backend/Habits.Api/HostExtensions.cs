@@ -60,8 +60,9 @@ public sealed record TyrHostConfiguration(
     /// - AuthCookieName - TyrAuthSession if not specified, shared between pet projects.<br />
     /// - CookiesDomain - typingrealm.com if not specified, shared between pet projects.<br />
     /// - JwtAudience - google auth client ID, shared between pet projects (main TypingRealm) if not specified.<br />
-    /// - CorsOrigins - specific list of origins, all TyR subdomains if not specified.
-    /// - Environment - if NOT set then production, otherwise dev-like (allows localhost CORS).
+    /// - CorsOrigins - specific list of origins, all TyR subdomains if not specified.<br />
+    /// - Environment - if NOT set then production, otherwise dev-like (allows localhost CORS).<br />
+    /// Environment is also appended to the name of the cookie, so that auth doesn't work cross-envs.
     /// </summary>
     /// <param name="appNamespace">Application namespace pattern, for logging Verbose logs.</param>
     public static TyrHostConfiguration Default(IConfiguration configuration, string appNamespace, bool isDebug)
@@ -71,11 +72,16 @@ public sealed record TyrHostConfiguration(
         if (corsOrigins is null)
             useTyrCorsOrigins = true;
 
+        var environment = TryReadConfig("Environment", configuration) ?? "Production";
+        var authCookieName = TryReadConfig("AuthCookieName", configuration) ?? "TyrAuthSession";
+        if (environment != "Production")
+            authCookieName = $"{authCookieName}_{environment}";
+
         return new(
             DataProtectionKeysPath: "/app/dataprotection",
             DataProtectionCertPath: "dp.pfx",
             DataProtectionCertPassword: isDebug ? string.Empty : ReadConfig("DpCertPassword", configuration),
-            AuthCookieName: TryReadConfig("AuthCookieName", configuration) ?? "TyrAuthSession",
+            AuthCookieName: authCookieName,
             CookiesDomain: TryReadConfig("CookiesDomain", configuration) ?? "typingrealm.com",
             AuthCookieExpiration: TimeSpan.FromDays(1.8),
             JwtIssuer: "https://accounts.google.com",
@@ -85,7 +91,7 @@ public sealed record TyrHostConfiguration(
             LogVerboseNamespace: appNamespace,
             CorsOrigins: corsOrigins?.Split(';') ?? [],
             UseTyrCorsOrigins: useTyrCorsOrigins,
-            Environment: TryReadConfig("Environment", configuration) ?? "Production")
+            Environment: environment)
         {
             IsDebug = isDebug
         };
@@ -160,7 +166,7 @@ public static class HostExtensions
                         if (context.ShouldRenew)
                             UpdateAuthInfoCookie(
                                 context,
-                                $"{config.AuthCookieName}Info",
+                                $"{config.AuthCookieName}_Info",
                                 config.CookiesDomain);
 
                         return Task.CompletedTask;
@@ -169,7 +175,7 @@ public static class HostExtensions
                     {
                         UpdateAuthInfoCookie(
                             context,
-                            $"{config.AuthCookieName}Info",
+                            $"{config.AuthCookieName}_Info",
                             config.CookiesDomain);
 
                         return Task.CompletedTask;
