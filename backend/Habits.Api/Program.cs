@@ -1,30 +1,38 @@
 ﻿using System.ComponentModel;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
-using Google.Apis.Auth;
+using Habits.Api;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.OpenApi;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using Scalar.AspNetCore;
-using Serilog;
-using Serilog.Events;
 
-var GoogleClient = "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com";
 var builder = WebApplication.CreateSlimBuilder(args);
-builder.Services.AddOpenApi();
-
-#if !DEBUG
-var cert = X509CertificateLoader.LoadPkcs12FromFile("dp.pfx", builder.Configuration["DpCertPassword"]);
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/app/dataprotection"))
-    .ProtectKeysWithCertificate(cert);
+var isDebug = false;
+#if DEBUG
+isDebug = true;
 #endif
+
+string ReadConfig(string name, string? debugValue = null)
+{
+    return builder.Configuration[name]
+        ?? (isDebug ? debugValue : null)
+        ?? throw new InvalidOperationException($"Cannot read {name} from configuration.");
+}
+
+var config = new TyrHostConfiguration(
+    DataProtectionKeysPath: "/app/dataprotection",
+    DataProtectionCertPath: "dp.pfx",
+    DataProtectionCertPassword: ReadConfig("DpCertPassword", string.Empty),
+    AuthCookieName: "HabitsAuthSession",
+    CookiesDomain: ReadConfig("CookiesDomain", "habits.typingrealm.com"),
+    AuthCookieExpiration: TimeSpan.FromDays(1.8),
+    JwtIssuer: "https://accounts.google.com",
+    JwtAudience: ReadConfig("JwtAudience", "725292928539-ebtufhfemopng7t4akjd9tpatun9fkgd.apps.googleusercontent.com"),
+    SeqUri: ReadConfig("SeqUri", string.Empty),
+    SeqApiKey: ReadConfig("SeqApiKey", string.Empty),
+    LogVerboseNamespace: "Habits",
+    CorsOrigins: ReadConfig("CorsOrigins", "http://localhost:4200;https://habits.typingrealm.com").Split(';'));
+
+await builder.ConfigureTyrApplicationBuilderAsync(config);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -33,143 +41,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     //options.SerializerOptions.DefaultBufferSize = 16_000_000; // Probably needed for fast path.
 });
 
-builder.Services.AddCors();
-
-builder.Services.AddAuthentication("AuthenticationScheme")
-    .AddPolicyScheme("AuthenticationScheme", JwtBearerDefaults.AuthenticationScheme, options =>
-    {
-        options.ForwardSignOut = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.ForwardDefaultSelector = context =>
-        {
-            if (context.Request.Cookies.ContainsKey("AuthSession"))
-                return CookieAuthenticationDefaults.AuthenticationScheme;
-
-            return JwtBearerDefaults.AuthenticationScheme;
-        };
-    })
-    .AddCookie(options =>
-    {
-        var cookieExpiration = TimeSpan.FromDays(1.8);
-        //var cookieExpiration = TimeSpan.FromMinutes(5); // For testing.
-
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.Domain = "habits.typingrealm.com";
-        options.Cookie.Name = "AuthSession";
-        options.ExpireTimeSpan = cookieExpiration;
-        options.SlidingExpiration = true;
-        options.Events.OnRedirectToLogin = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        };
-        options.Events.OnCheckSlidingExpiration = context =>
-        {
-            if (context.ShouldRenew)
-            {
-                var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
-                var expires = DateTimeOffset.UtcNow.Add(expirationTime);
-
-                // If this cookie expires - we need to go and grab another JWT.
-                context.HttpContext.Response.Cookies.Append(
-                    "AuthInfo",
-                    $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
-                    new CookieOptions
-                    {
-                        HttpOnly = false,
-                        Secure = true,
-                        SameSite = SameSiteMode.Strict,
-                        Domain = "habits.typingrealm.com",
-                        Expires = expires
-                    });
-            }
-
-            return Task.CompletedTask;
-        };
-        options.Events.OnSignedIn = context =>
-        {
-            var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
-            var expires = DateTimeOffset.UtcNow.Add(expirationTime);
-
-            // If this cookie expires - we need to go and grab another JWT.
-            context.HttpContext.Response.Cookies.Append(
-                "AuthInfo",
-                $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
-                new CookieOptions
-                {
-                    HttpOnly = false,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
-                    Domain = "habits.typingrealm.com",
-                    Expires = expires
-                });
-
-            return Task.CompletedTask;
-        };
-    })
-    .AddJwtBearer(o =>
-    {
-        o.TokenValidationParameters.ValidIssuer = "https://accounts.google.com";
-        o.TokenValidationParameters.ValidAudience = GoogleClient;
-        o.TokenValidationParameters.SignatureValidator = delegate (string token, TokenValidationParameters parameters)
-        {
-            GoogleJsonWebSignature.ValidateAsync(token, new GoogleJsonWebSignature.ValidationSettings
-            {
-                Audience = [GoogleClient]
-            });
-
-            return new Microsoft.IdentityModel.JsonWebTokens.JsonWebToken(token);
-        };
-
-        o.Events = new JwtBearerEvents
-        {
-            OnTokenValidated = async context =>
-            {
-                var principal = context.Principal ?? throw new InvalidOperationException("No principal.");
-                var identity = new ClaimsIdentity(principal.Claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties { IsPersistent = true };
-
-                await context.HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(identity),
-                    authProperties);
-            }
-        };
-    });
-builder.Services.AddAuthorization();
-
-builder.Services.AddOpenApi(options =>
-{
-    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
-});
-
-builder.Host.UseSerilog((context, config) =>
-{
-    config
-        .MinimumLevel.Information()
-        .MinimumLevel.Override("Habits", LogEventLevel.Verbose)
-        .WriteTo.Console();
-
-#if !DEBUG
-    config.WriteTo.Seq(
-        builder.Configuration["SeqUri"] ?? throw new InvalidOperationException("Cannot read seq uri secret."),
-        apiKey: builder.Configuration["SeqApiKey"]);
-#endif
-});
-
 var app = builder.Build();
-
-app.MapOpenApi();
-app.MapScalarApiReference("docs");
-
-app.UseCors(builder => builder
-    .WithOrigins("http://localhost:4200", "https://habits.typingrealm.com")
-    .AllowAnyMethod()
-    .AllowCredentials()
-    .WithHeaders("Authorization", "Content-Type"));
-app.UseAuthentication();
-app.UseAuthorization();
+app.ConfigureTyrApplication(config);
 
 var logger = app.Services.GetRequiredService<ILogger<HabitsApp>>();
 logger.LogInformation("Starting the application");
@@ -388,25 +261,3 @@ internal sealed record Created(
 /// </summary>
 internal sealed record HabitsApp();
 
-internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider) : IOpenApiDocumentTransformer
-{
-    public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
-    {
-        var authenticationSchemes = await authenticationSchemeProvider.GetAllSchemesAsync();
-        if (authenticationSchemes.Any(authScheme => authScheme.Name == "Bearer"))
-        {
-            var requirements = new Dictionary<string, OpenApiSecurityScheme>
-            {
-                ["Bearer"] = new OpenApiSecurityScheme
-                {
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer",
-                    In = ParameterLocation.Header,
-                    BearerFormat = "Json Web Token"
-                }
-            };
-            document.Components ??= new OpenApiComponents();
-            document.Components.SecuritySchemes = requirements;
-        }
-    }
-}
