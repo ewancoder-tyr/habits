@@ -74,11 +74,15 @@ export class AuthService {
     }
 
     private checkCookie() {
-        const _ = document.cookie; // To make sure browser deletes expired cookies?
-        return document.cookie
+        const cookie = document.cookie
             .split(';')
             .map(x => x.trim())
             .find(cookie => cookie.startsWith('AuthInfo='));
+
+        if (!cookie) return cookie;
+
+        const expiration = decodeURIComponent(cookie.replace('AuthInfo=', '')).split('|')[0];
+        return new Date(Date.parse(expiration)) > new Date();
     }
 
     private getPictureFromCookie() {
@@ -88,7 +92,7 @@ export class AuthService {
             .find(cookie => cookie.startsWith('AuthInfo='));
 
         if (cookie) {
-            return decodeURIComponent(cookie?.replace('AuthInfo=', ''));
+            return decodeURIComponent(cookie.replace('AuthInfo=', '')).split('|')[1];
         } else return undefined;
     }
 }
