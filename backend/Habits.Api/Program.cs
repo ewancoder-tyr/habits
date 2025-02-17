@@ -59,6 +59,11 @@ builder.Services.AddAuthentication("AuthenticationScheme")
         options.Cookie.Name = "AuthSession";
         options.ExpireTimeSpan = cookieExpiration;
         options.SlidingExpiration = true;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
         options.Events.OnCheckSlidingExpiration = context =>
         {
             if (context.ShouldRenew)
