@@ -77,11 +77,11 @@ export class AuthService {
         const cookie = document.cookie
             .split(';')
             .map(x => x.trim())
-            .find(cookie => cookie.startsWith('TyrAuthSessionInfo='));
+            .find(cookie => cookie.startsWith('TyrAuthSession_Development_Info='));
 
         if (!cookie) return cookie;
 
-        const expiration = decodeURIComponent(cookie.replace('TyrAuthSessionInfo=', '')).split('|')[0];
+        const expiration = decodeURIComponent(cookie.replace('TyrAuthSession_Development_Info=', '')).split('|')[0];
         return new Date(Date.parse(expiration)) > new Date();
     }
 
@@ -89,10 +89,10 @@ export class AuthService {
         const cookie = document.cookie
             .split(';')
             .map(x => x.trim())
-            .find(cookie => cookie.startsWith('TyrAuthSessionInfo='));
+            .find(cookie => cookie.startsWith('TyrAuthSession_Development_Info='));
 
         if (cookie) {
-            return decodeURIComponent(cookie.replace('TyrAuthSessionInfo=', '')).split('|')[1];
+            return decodeURIComponent(cookie.replace('TyrAuthSession_Development_Info=', '')).split('|')[1];
         } else return undefined;
     }
 }
