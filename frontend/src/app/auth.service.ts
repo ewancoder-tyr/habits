@@ -18,7 +18,7 @@ export class AuthService {
         if (this.checkCookie()) {
             this.needsAuthSignal.set(false);
             console.log('cookie is found, using it for auth');
-            this.picture = this.getPictureFromCookie();
+            this.picture = this.getPictureFromCookie(); // TODO: Do not read it every time we need a token.
             console.log('using picture from info cookie', this.picture);
             return '';
         } else if (!this.token) {
@@ -74,6 +74,7 @@ export class AuthService {
     }
 
     private checkCookie() {
+        const _ = document.cookie; // To make sure browser deletes expired cookies?
         return document.cookie
             .split(';')
             .map(x => x.trim())
