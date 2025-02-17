@@ -15,6 +15,17 @@ export class AuthService {
     public picture: string | undefined;
 
     public async getToken(): Promise<string> {
+        if (this.checkCookie()) {
+            this.needsAuthSignal.set(false);
+            console.log('cookie is found, using it for auth');
+            this.picture = this.getPictureFromCookie();
+            console.log('using picture from info cookie', this.picture);
+            return '';
+        } else if (!this.token) {
+            console.log('cookie is not found and token is empty. getting the token');
+            this.needsAuthSignal.set(true);
+        }
+
         if (!this.needsAuthSignal()) {
             return this.token;
         }
@@ -32,7 +43,14 @@ export class AuthService {
             this.needsAuthSignal.set(false);
 
             setTimeout(() => {
-                this.needsAuthSignal.set(true);
+                if (this.checkCookie()) {
+                    console.log('token has expired but cookie is present. continuing using the cookie.');
+                    this.token = ''; // Make sure when cookie expires we get a new token.
+                } else {
+                    console.log('token has expired and cookie too. notifying that we need to authenticate again.');
+                    this.needsAuthSignal.set(true);
+                    this.token = '';
+                }
             }, this.getMsTillAuthenticationIsRequired(this.token));
 
             this.picture = this.parseJwt(this.token).picture;
@@ -53,5 +71,23 @@ export class AuthService {
 
     private parseJwt(token: string) {
         return JSON.parse(atob(token.split('.')[1]));
+    }
+
+    private checkCookie() {
+        return document.cookie
+            .split(';')
+            .map(x => x.trim())
+            .find(cookie => cookie.startsWith('AuthInfo='));
+    }
+
+    private getPictureFromCookie() {
+        const cookie = document.cookie
+            .split(';')
+            .map(x => x.trim())
+            .find(cookie => cookie.startsWith('AuthInfo='));
+
+        if (cookie) {
+            return decodeURIComponent(cookie?.replace('AuthInfo=', ''));
+        } else return undefined;
     }
 }

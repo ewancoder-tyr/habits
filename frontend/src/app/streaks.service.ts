@@ -1,6 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
-import { HttpClient, HttpUserEvent } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from './auth.service';
 import { BehaviorSubject, flatMap, from, map, mergeMap, Observable, of, Subscription, switchMap, tap } from 'rxjs';
 
@@ -109,7 +109,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                     .get<HabitStreakData[]>('https://api.habits.typingrealm.com/api/habits', {
                         headers: {
                             Authorization: `Bearer ${token}`
-                        }
+                        },
+                        withCredentials: true
                     })
                     .pipe(
                         tap(habits => {
@@ -127,7 +128,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                     .put<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habitId}`, habit, {
                         headers: {
                             Authorization: `Bearer ${token}`
-                        }
+                        },
+                        withCredentials: true
                     })
                     .pipe(
                         tap(habit => {
@@ -148,7 +150,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                     .post<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habit}/days/${day}`, null, {
                         headers: {
                             Authorization: `Bearer ${token}`
-                        }
+                        },
+                        withCredentials: true
                     })
                     .pipe(
                         tap(habit => {
@@ -169,7 +172,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                     .delete<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${habit}/days/${day}`, {
                         headers: {
                             Authorization: `Bearer ${token}`
-                        }
+                        },
+                        withCredentials: true
                     })
                     .pipe(
                         tap(habit => {
@@ -196,7 +200,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                         {
                             headers: {
                                 Authorization: `Bearer ${token}`
-                            }
+                            },
+                            withCredentials: true
                         }
                     )
                     .pipe(
@@ -204,7 +209,8 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
                             this.http.get<HabitStreakData>(`https://api.habits.typingrealm.com/api/habits/${created.id}`, {
                                 headers: {
                                     Authorization: `Bearer ${token}`
-                                }
+                                },
+                                withCredentials: true
                             })
                         )
                     )
