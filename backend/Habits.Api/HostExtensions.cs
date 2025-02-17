@@ -14,6 +14,23 @@ using Serilog.Events;
 
 namespace Habits.Api;
 
+public sealed record User(string UserId);
+public interface IUserProvider
+{
+    User GetUser();
+}
+public sealed class GoogleUserProvider(IHttpContextAccessor httpContextAccessor) : IUserProvider
+{
+    public User GetUser()
+    {
+        var user = httpContextAccessor.HttpContext?.User;
+        var sub = user?.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new InvalidOperationException("User is not authenticated.");
+
+        return new($"google_{sub}");
+    }
+}
+
 public sealed record TyrHostConfiguration(
     string DataProtectionKeysPath,
     string DataProtectionCertPath,
@@ -54,6 +71,9 @@ public static class HostExtensions
 
         // Authentication.
         {
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddTransient<IUserProvider, GoogleUserProvider>();
+            builder.Services.AddTransient<User>(ctx => ctx.GetRequiredService<IUserProvider>().GetUser());
             builder.Services.AddAuthorization();
             builder.Services.AddAuthentication("TyrAuthenticationScheme")
                 .AddPolicyScheme("TyrAuthenticationScheme", JwtBearerDefaults.AuthenticationScheme, options =>

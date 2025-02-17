@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Habits.Api;
 using Microsoft.AspNetCore.Authentication;
@@ -108,12 +107,9 @@ authGroup.MapPost("/logout", async (HttpResponse _, HttpContext context) =>
     .WithSummary("Logout")
     .WithDescription("Signs out and deletes session cookie.");
 
-habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
+habitsGroup.MapGet("/", (User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (db.TryGetValue($"google_{userId}", out var habits))
+    if (db.TryGetValue(user.UserId, out var habits))
         return habits;
 
     return [];
@@ -121,12 +117,9 @@ habitsGroup.MapGet("/", (ClaimsPrincipal user) =>
     .WithSummary("Get all habits")
     .WithDescription("Gets all habits for current user.");
 
-habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Identifier of the habit.")]string habitId, ClaimsPrincipal user) =>
+habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Identifier of the habit.")]string habitId, User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (!db.TryGetValue($"google_{userId}", out var habits))
+    if (!db.TryGetValue(user.UserId, out var habits))
         return TypedResults.NotFound();
 
     var habit = habits.Find(habit => habit.Name == habitId);
@@ -138,15 +131,12 @@ habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Ide
     .WithSummary("Get a single habit")
     .WithDescription("Gets a single habit for current user.");
 
-habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> ([Description("A new habit information")]CreateHabit body, ClaimsPrincipal user) =>
+habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> ([Description("A new habit information")]CreateHabit body, User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (!db.TryGetValue($"google_{userId}", out var habits))
+    if (!db.TryGetValue(user.UserId, out var habits))
     {
         habits = new List<Habit>();
-        db.Add($"google_{userId}", habits);
+        db.Add(user.UserId, habits);
     }
 
     if (habits.Exists(habit => habit.Name == body.Name))
@@ -166,12 +156,9 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
     .WithSummary("Create a new habit")
     .WithDescription("Creates a new habit for current user.");
 
-habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([Description("Habit identifier. Same as the habit's name.")]string id, [Description("Habit information for an update.")]CreateHabit body, ClaimsPrincipal user) =>
+habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([Description("Habit identifier. Same as the habit's name.")]string id, [Description("Habit information for an update.")]CreateHabit body, User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (!db.TryGetValue($"google_{userId}", out var habits))
+    if (!db.TryGetValue(user.UserId, out var habits))
         return TypedResults.NotFound();
 
     var habit = habits.Find(habit => habit.Name == id);
@@ -189,12 +176,9 @@ habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([D
     .WithSummary("Update a habit")
     .WithDescription("Updates information of the habit.");
 
-habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to mark, counted from 2020.")]int day, ClaimsPrincipal user) =>
+habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to mark, counted from 2020.")]int day, User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (!db.TryGetValue($"google_{userId}", out var habits))
+    if (!db.TryGetValue(user.UserId, out var habits))
         return TypedResults.NotFound();
 
     var habit = habits.Find(habit => habit.Name == id);
@@ -208,12 +192,9 @@ habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Descripti
     .WithSummary("Mark a day")
     .WithDescription("Marks a day as if we did the habit on that day.");
 
-habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to unmark, counted from 2020.")]int day, ClaimsPrincipal user) =>
+habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to unmark, counted from 2020.")]int day, User user) =>
 {
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? throw new InvalidOperationException("User ID should not be null. This endpoint is protected with authentication.");
-
-    if (!db.TryGetValue($"google_{userId}", out var habits))
+    if (!db.TryGetValue(user.UserId, out var habits))
         return TypedResults.NotFound();
 
     var habit = habits.Find(habit => habit.Name == id);
