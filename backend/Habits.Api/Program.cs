@@ -24,57 +24,15 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     //options.SerializerOptions.DefaultBufferSize = 16_000_000; // Probably needed for fast path.
 });
 
+var db = await Repository.LoadAsync();
+builder.Services.AddSingleton(db);
+builder.Services.AddHostedService<DataSaverHostedService>();
+
 var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<HabitsApp>>();
-
 app.ConfigureTyrApplication(config, logger);
 logger.LogInformation("Starting the application");
-
-var needToSave = false;
-var db = new Dictionary<string, List<Habit>>();
-if (!Directory.Exists("data"))
-    Directory.CreateDirectory("data");
-if (File.Exists("data/db"))
-{
-    logger.LogInformation("Found database file, loading the data.");
-    var content = await File.ReadAllTextAsync("data/db");
-    try
-    {
-        db = JsonSerializer.Deserialize(content, SerializerContext.Default.DictionaryStringListHabit);
-        if (db is null) throw new InvalidOperationException("Could not deserialize the database");
-    }
-    catch (Exception exception)
-    {
-        logger.LogError(exception, "Could not load the database");
-        throw;
-    }
-}
-
-var saver = Task.Run(async () =>
-{
-    while (true)
-    {
-        if (needToSave)
-        {
-            try
-            {
-                logger.LogInformation("Changes were detected, saving the data");
-
-                var serialized = JsonSerializer.Serialize(db, SerializerContext.Default.DictionaryStringListHabit);
-                await File.WriteAllTextAsync("data/db", serialized);
-                needToSave = false;
-                logger.LogInformation("Successfully saved the data");
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Failed to save the data");
-            }
-        }
-
-        await Task.Delay(TimeSpan.FromMinutes(1));
-    }
-});
 
 var apis = app.MapGroup("/").RequireAuthorization();
 var habitsGroup = apis.MapGroup("/api/habits")
@@ -91,18 +49,14 @@ authGroup.MapPost("/logout", async (HttpResponse _, HttpContext context) =>
 
 habitsGroup.MapGet("/", (User user) =>
 {
-    if (db.TryGetValue(user.UserId, out var habits))
-        return habits;
-
-    return [];
+    return db.GetHabitsForUser(user.UserId);
 })
     .WithSummary("Get all habits")
     .WithDescription("Gets all habits for current user.");
 
 habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Identifier of the habit.")]string habitId, User user) =>
 {
-    if (!db.TryGetValue(user.UserId, out var habits))
-        return TypedResults.NotFound();
+    var habits = db.GetHabitsForUser(user.UserId);
 
     var habit = habits.Find(habit => habit.Name == habitId);
     if (habit is null)
@@ -115,11 +69,7 @@ habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Ide
 
 habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> ([Description("A new habit information")]CreateHabit body, User user) =>
 {
-    if (!db.TryGetValue(user.UserId, out var habits))
-    {
-        habits = new List<Habit>();
-        db.Add(user.UserId, habits);
-    }
+    var habits = db.GetHabitsForUser(user.UserId);
 
     if (habits.Exists(habit => habit.Name == body.Name))
         return TypedResults.BadRequest("Habit with this name already exists.");
@@ -131,8 +81,8 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
         Days = []
     };
 
-    habits.Add(habit);
-    needToSave = true;
+    db.AddHabit(user.UserId, habit);
+    db.MarkNeedToSave();
     return TypedResults.Created("/api/habits", new Created(habit.Name));
 })
     .WithSummary("Create a new habit")
@@ -140,8 +90,7 @@ habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>>
 
 habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([Description("Habit identifier. Same as the habit's name.")]string id, [Description("Habit information for an update.")]CreateHabit body, User user) =>
 {
-    if (!db.TryGetValue(user.UserId, out var habits))
-        return TypedResults.NotFound();
+    var habits = db.GetHabitsForUser(user.UserId);
 
     var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
@@ -152,7 +101,7 @@ habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([D
 
     habit.Name = body.Name;
     habit.LengthDays = body.LengthDays;
-    needToSave = true;
+    db.MarkNeedToSave();
     return TypedResults.Ok(habit);
 })
     .WithSummary("Update a habit")
@@ -160,15 +109,14 @@ habitsGroup.MapPut("/{id}", Results<NotFound, BadRequest<string>, Ok<Habit>> ([D
 
 habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to mark, counted from 2020.")]int day, User user) =>
 {
-    if (!db.TryGetValue(user.UserId, out var habits))
-        return TypedResults.NotFound();
+    var habits = db.GetHabitsForUser(user.UserId);
 
     var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
 
     habit.Days.Add(day);
-    needToSave = true;
+    db.MarkNeedToSave();
     return TypedResults.Ok(habit);
 })
     .WithSummary("Mark a day")
@@ -176,15 +124,14 @@ habitsGroup.MapPost("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Descripti
 
 habitsGroup.MapDelete("/{id}/days/{day}", Results<NotFound, Ok<Habit>> ([Description("Habit identifier = habit name.")]string id, [Description("Day number to unmark, counted from 2020.")]int day, User user) =>
 {
-    if (!db.TryGetValue(user.UserId, out var habits))
-        return TypedResults.NotFound();
+    var habits = db.GetHabitsForUser(user.UserId);
 
     var habit = habits.Find(habit => habit.Name == id);
     if (habit is null)
         return TypedResults.NotFound();
 
     habit.Days.Remove(day);
-    needToSave = true;
+    db.MarkNeedToSave();
     return TypedResults.Ok(habit);
 })
     .WithSummary("Unmark a day")
@@ -198,7 +145,7 @@ internal sealed record CreateHabit(
     [property: Description("Amount of days that we don't need to do anything after we did the habit one time.")]
     int LengthDays);
 
-internal sealed class Habit
+public sealed class Habit
 {
     [Description("Name of the habit")]
     public required string Name { get; set; }
