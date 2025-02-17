@@ -18,7 +18,7 @@ public sealed class DataSaverHostedService(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await db.SaveIfNeedAsync(_cts.Token);
+                await db.SaveIfNeedAsync(_cts.Token, logger);
                 await Task.Delay(TimeSpan.FromMinutes(1), _cts.Token);
             }
         });

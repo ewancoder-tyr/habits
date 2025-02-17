@@ -61,8 +61,12 @@ public sealed class Repository
 
     public void MarkNeedToSave() => _needToSave = true;
 
-    public async ValueTask SaveIfNeedAsync(CancellationToken cancellationToken)
+    public async ValueTask SaveIfNeedAsync(CancellationToken cancellationToken, ILogger<DataSaverHostedService> logger)
     {
+        if (!_needToSave)
+            return;
+
+        logger.LogInformation("Need to save. Saving the database");
         var neededToSave = false;
         try
         {
@@ -78,9 +82,11 @@ public sealed class Repository
 
             // Do not pass cancellation token here, let it finish the write.
             await File.WriteAllTextAsync("data/db", serialized, cancellationToken: default);
+            logger.LogInformation("Successfully saved the data");
         }
-        catch
+        catch (Exception exception)
         {
+            logger.LogError(exception, "Could not save the database");
             _needToSave = _needToSave ? _needToSave : neededToSave;
             throw;
         }
