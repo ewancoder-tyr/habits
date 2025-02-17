@@ -46,6 +46,7 @@ builder.Services.AddAuthentication("AuthenticationScheme")
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Domain = "habits.typingrealm.com";
         options.Cookie.Name = "AuthSession";
         options.ExpireTimeSpan = cookieExpiration;
         options.SlidingExpiration = true;
@@ -64,6 +65,7 @@ builder.Services.AddAuthentication("AuthenticationScheme")
                         HttpOnly = false,
                         Secure = true,
                         SameSite = SameSiteMode.Strict,
+                        Domain = "habits.typingrealm.com",
                         Expires = DateTimeOffset.UtcNow.Add(expirationTime)
                     });
             }
@@ -83,6 +85,7 @@ builder.Services.AddAuthentication("AuthenticationScheme")
                     HttpOnly = false,
                     Secure = true,
                     SameSite = SameSiteMode.Strict,
+                    Domain = "habits.typingrealm.com",
                     Expires = DateTimeOffset.UtcNow.Add(expirationTime)
                 });
 
