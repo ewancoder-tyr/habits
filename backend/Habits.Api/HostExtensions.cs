@@ -232,8 +232,9 @@ public static class HostExtensions
     }
 
     public static void ConfigureTyrApplication(
-        this WebApplication app, TyrHostConfiguration config, ILogger<HabitsApp> logger)
+        this WebApplication app, TyrHostConfiguration config)
     {
+        var logger = app.Services.GetRequiredService<ILogger<TyrHostConfiguration>>();
         app.MapOpenApi(); // OpenAPI document.
         app.MapScalarApiReference("docs"); // Scalar on "/docs" url.
 
@@ -264,6 +265,17 @@ public static class HostExtensions
 
         app.UseAuthentication(); // Mandatory to register AFTER CORS.
         app.UseAuthorization();
+
+        // Add logout endpoint for removing the cookie.
+        app.MapPost("/api/auth/logout", async (HttpResponse _, HttpContext context) =>
+        {
+            await context.SignOutAsync();
+            context.Response.Cookies.Delete($"{config.AuthCookieName}_Info");
+        })
+            .WithTags("Authentication")
+            .WithSummary("Sign out current user")
+            .WithDescription("Signs out current user (removes the cookie) so you can sign in with a different login.")
+            .RequireAuthorization();
     }
 
     private static void UpdateAuthInfoCookie(
