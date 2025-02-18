@@ -1,5 +1,17 @@
 ﻿namespace Habits.Api;
 
+public sealed class UserScopedRepository(Repository repo, User user)
+{
+    public List<Habit> GetHabits()
+        => repo.GetHabitsForUser(user.UserId);
+
+    public void AddHabit(Habit habit)
+        => repo.AddHabit(user.UserId, habit);
+
+    public void MarkNeedToSave()
+        => repo.MarkNeedToSave();
+}
+
 public sealed class Repository
 {
     private bool _needToSave;
@@ -21,9 +33,9 @@ public sealed class Repository
             var db = JsonSerializer.Deserialize(
                 content, SerializerContext.Default.DictionaryStringListHabit);
 
-            if (db is null) throw new InvalidOperationException("Could not deserialize the database.");
-
-            return new(db);
+            return db is null
+                ? throw new InvalidOperationException("Could not deserialize the database.")
+                : new(db);
         }
         catch (Exception exception)
         {
@@ -52,8 +64,10 @@ public sealed class Repository
                 habits.Add(habit);
             else
             {
-                var newHabits = new List<Habit>();
-                newHabits.Add(habit);
+                var newHabits = new List<Habit>
+                {
+                    habit
+                };
                 _db.Add(userId, newHabits);
             }
         }
@@ -63,6 +77,8 @@ public sealed class Repository
 
     public async ValueTask SaveIfNeedAsync(CancellationToken cancellationToken, ILogger<DataSaverHostedService> logger)
     {
+        _ = cancellationToken;
+
         if (!_needToSave)
             return;
 

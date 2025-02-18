@@ -26,6 +26,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var db = await Repository.LoadAsync();
 builder.Services.AddSingleton(db);
+builder.Services.AddTransient<UserScopedRepository>();
 builder.Services.AddHostedService<DataSaverHostedService>();
 
 var app = builder.Build();
@@ -38,6 +39,8 @@ var apis = app.MapGroup("/").RequireAuthorization();
 var habitsGroup = apis.MapGroup("/api/habits")
     .WithTags("Habits");
 
+habitsGroup.MapHabitsApi();
+
 var authGroup = apis.MapGroup("/api/auth").WithTags("Authentication");
 authGroup.MapPost("/logout", async (HttpResponse _, HttpContext context) =>
 {
@@ -46,26 +49,6 @@ authGroup.MapPost("/logout", async (HttpResponse _, HttpContext context) =>
 })
     .WithSummary("Logout")
     .WithDescription("Signs out and deletes session cookie.");
-
-habitsGroup.MapGet("/", (User user) =>
-{
-    return db.GetHabitsForUser(user.UserId);
-})
-    .WithSummary("Get all habits")
-    .WithDescription("Gets all habits for current user.");
-
-habitsGroup.MapGet("/{habitId}", Results<NotFound, Ok<Habit>> ([Description("Identifier of the habit.")]string habitId, User user) =>
-{
-    var habits = db.GetHabitsForUser(user.UserId);
-
-    var habit = habits.Find(habit => habit.Name == habitId);
-    if (habit is null)
-        return TypedResults.NotFound();
-
-    return TypedResults.Ok(habit);
-})
-    .WithSummary("Get a single habit")
-    .WithDescription("Gets a single habit for current user.");
 
 habitsGroup.MapPost("/", Results<NotFound, BadRequest<string>, Created<Created>> ([Description("A new habit information")]CreateHabit body, User user) =>
 {
