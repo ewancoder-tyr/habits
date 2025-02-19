@@ -29,6 +29,7 @@ export class AuthService {
             .subscribe(_ => {
                 this.token = '';
                 this.needsAuthSignal.set(true);
+                // TODO: Clear AuthInfo cookie here in case server did not do it for some reason.
             });
     }
 
