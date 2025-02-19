@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Habits.Api;
 

@@ -166,7 +166,8 @@ public static class HostExtensions
                         if (context.ShouldRenew)
                             UpdateAuthInfoCookie(
                                 context,
-                                $"{config.AuthCookieName}_Info",
+                                context.HttpContext,
+                                config.AuthCookieName,
                                 config.CookiesDomain);
 
                         return Task.CompletedTask;
@@ -175,7 +176,8 @@ public static class HostExtensions
                     {
                         UpdateAuthInfoCookie(
                             context,
-                            $"{config.AuthCookieName}_Info",
+                            context.HttpContext,
+                            config.AuthCookieName,
                             config.CookiesDomain);
 
                         return Task.CompletedTask;
@@ -267,10 +269,15 @@ public static class HostExtensions
         app.UseAuthorization();
 
         // Add logout endpoint for removing the cookie.
-        app.MapPost("/api/auth/logout", async (HttpResponse _, HttpContext context) =>
+        app.MapPost("/auth/logout", async (HttpResponse _, HttpContext context) =>
         {
             await context.SignOutAsync();
-            context.Response.Cookies.Delete($"{config.AuthCookieName}_Info");
+            UpdateAuthInfoCookie(
+                null,
+                context,
+                config.AuthCookieName,
+                config.CookiesDomain,
+                delete: true);
         })
             .WithTags("Authentication")
             .WithSummary("Sign out current user")
@@ -278,16 +285,32 @@ public static class HostExtensions
             .RequireAuthorization();
     }
 
+    // Hacky implementation to reuse the code.
+    // TODO: Refactor.
     private static void UpdateAuthInfoCookie(
-        PrincipalContext<CookieAuthenticationOptions> context, string authInfoCookieName, string domain)
+        PrincipalContext<CookieAuthenticationOptions>? context,
+        HttpContext httpContext,
+        string authCookieName,
+        string domain,
+        bool delete = false)
     {
-        var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
-        var expires = DateTimeOffset.UtcNow.Add(expirationTime);
+        DateTimeOffset? expires = null;
+        if (context != null)
+        {
+            var expirationTime = context.Options.ExpireTimeSpan - TimeSpan.FromSeconds(10); // Account for this code running.
+            expires = DateTimeOffset.UtcNow.Add(expirationTime);
+        }
 
-        // If this cookie expires - we need to go and grab another JWT.
-        context.HttpContext.Response.Cookies.Append(
-            authInfoCookieName,
-            $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
+        // Expire the cookie to delete it.
+        if (delete || context == null)
+            expires = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromDays(1));
+
+        if (expires == null)
+            throw new InvalidOperationException("Wrong flow. Shouldn't happen.");
+
+        httpContext.Response.Cookies.Append(
+            $"{authCookieName}_Info",
+            context == null ? string.Empty : $"{expires}|{context.Principal?.Claims.FirstOrDefault(x => x.Type == "picture")?.Value ?? string.Empty}",
             new CookieOptions
             {
                 HttpOnly = false,
