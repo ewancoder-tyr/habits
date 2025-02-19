@@ -1,1 +1,11 @@
-<div #auth></div>
+@let needAuth = auth.needsAuthSignal();
+<div [class.hidden]="!needAuth" #authElement></div>
+<div class="nav" [class.hidden]="needAuth">
+  <div class="filler"></div>
+  <div>
+    <img class="avatar" [src]="auth.picture" />
+  </div>
+  <div class="filler">
+    <span class="logout" (click)="auth.logout()">Logout</span>
+  </div>
+</div>

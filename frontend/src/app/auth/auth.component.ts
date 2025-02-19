@@ -8,10 +8,13 @@ import { Mode, StreaksService } from '../streaks.service';
     imports: [],
     templateUrl: './auth.component.html',
     styleUrl: './auth.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    host: {
+        '[class.hidden]': 'streaksService.modeSignal() !== 2'
+    }
 })
 export class AuthComponent {
-    @ViewChild('auth') authElement!: ElementRef<HTMLDivElement>;
+    @ViewChild('authElement') authElement!: ElementRef<HTMLDivElement>;
     @HostListener('window:load')
     async onLoad() {
         initializeGoogleAuth(this.authElement.nativeElement);
@@ -19,7 +22,7 @@ export class AuthComponent {
 
     constructor(
         protected auth: AuthService,
-        private streaksService: StreaksService
+        protected streaksService: StreaksService
     ) {
         effect(() => {
             if (auth.needsAuthSignal() && streaksService.modeSignal() === Mode.Server) this.auth.getToken();

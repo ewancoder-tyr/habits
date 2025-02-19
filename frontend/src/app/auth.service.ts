@@ -1,5 +1,6 @@
 import { Injectable, signal, WritableSignal } from '@angular/core';
 import { createLock } from './lib';
+import { HttpClient } from '@angular/common/http';
 
 let _getToken: (() => Promise<string>) | undefined = undefined;
 export function setupAuth(getToken: () => Promise<string>) {
@@ -13,6 +14,23 @@ export class AuthService {
 
     public needsAuthSignal: WritableSignal<boolean> = signal(true);
     public picture: string | undefined;
+
+    constructor(private http: HttpClient) {}
+
+    public async logout() {
+        const token = await this.getToken();
+        this.http
+            .post('https://api.habits.typingrealm.com/api/auth/logout', null, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                withCredentials: true
+            })
+            .subscribe(_ => {
+                this.token = '';
+                this.needsAuthSignal.set(true);
+            });
+    }
 
     public async getToken(): Promise<string> {
         if (this.checkCookie()) {

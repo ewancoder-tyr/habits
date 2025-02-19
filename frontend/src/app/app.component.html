@@ -1,9 +1,8 @@
-<img src="/favicon.ico" class="change-mode" (click)="resetMode()" />
-
 @let mode = streaksService.modeSignal();
 @let needsAuth = auth.needsAuthSignal();
-<hab-auth [class.hidden]="!needsAuth || mode !== 2"></hab-auth>
+<hab-auth></hab-auth>
 
+<img src="/favicon.ico" class="change-mode" (click)="resetMode()" />
 @if (mode === 0) {
   <hab-mode-selector></hab-mode-selector>
 } @else {
@@ -13,7 +12,7 @@
     @if (needsAuth) {
       <h3 style="margin: 0 auto; padding-top: 20px">Please sign in to use the application</h3>
     } @else {
-      <img class="avatar" [src]="auth.picture" />
+      <!--<img class="avatar" [src]="auth.picture" />-->
       <router-outlet />
     }
   }

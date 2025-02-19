@@ -1,4 +1,50 @@
 :host {
   display: flex;
   justify-content: center;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.hidden {
+  display: none !important;
+}
+
+.nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.filler {
+  width: 20%;
+  text-align: right;
+}
+
+.logout {
+  text-align: right;
+  cursor: pointer;
+  padding: 30px;
+}
+
+.logout:hover {
+  font-weight: bold;
+}
+
+.avatar {
+  border-radius: 50%;
+  margin: 0 auto;
+}
+
+.change-mode {
+  cursor: pointer;
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  padding: 5px;
+  background-color: #cdc;
+  margin: 20px;
 }
