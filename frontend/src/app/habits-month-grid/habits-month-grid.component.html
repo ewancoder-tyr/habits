@@ -1,6 +1,8 @@
 <h2></h2>
 <h2>{{ monthNameSignal() }}</h2>
 @for (habit of daysSignal(); track habit[0]) {
-  <h4 (click)="updateHabit(habit[0])">{{ habit[0] }}</h4>
+  <div>
+    <span class="habit-title" (click)="updateHabit(habit[0])">{{ habit[0] }}</span>
+  </div>
   <hab-streak-line [days]="habit[1]"></hab-streak-line>
 }
