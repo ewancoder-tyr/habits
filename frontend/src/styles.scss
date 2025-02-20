@@ -1,6 +1,12 @@
 $bgOpacity: 0.95;
+$bgOpacityDarkTheme: 0.9;
 
 html {
   background: linear-gradient(rgba(255, 255, 255, $bgOpacity), rgba(255, 255, 255, $bgOpacity)), url('/bg.webp');
   font-family: 'Lora';
+}
+
+.dark-theme {
+  background: linear-gradient(rgba(0, 0, 0, $bgOpacityDarkTheme), rgba(0, 0, 0, $bgOpacityDarkTheme)), url('/bg.webp');
+  color: #ddd;
 }

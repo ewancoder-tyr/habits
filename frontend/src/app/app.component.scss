@@ -3,13 +3,23 @@
   flex-direction: column;
 }
 
-.change-mode {
+.top-nav {
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  margin: 15px;
+}
+
+.top-nav-btn {
   cursor: pointer;
   height: 40px;
   width: 40px;
   border-radius: 50%;
   padding: 5px;
-  background-color: #cdc;
-  margin: 20px;
-  position: absolute;
+  margin: 5px;
+  background-color: rgba(204, 221, 204, 0.8);
+}
+
+.nav-dark-theme {
+  background-color: rgba(58, 81, 30, 0.8);
 }

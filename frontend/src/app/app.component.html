@@ -2,7 +2,14 @@
 @let needsAuth = auth.needsAuthSignal();
 <hab-auth></hab-auth>
 
-<img src="/favicon.ico" class="change-mode" (click)="resetMode()" />
+<div class="top-nav">
+  <img class="top-nav-btn" [class.nav-dark-theme]="themeService.isDarkThemeSignal()" src="/favicon.ico" (click)="resetMode()" />
+  <img
+    class="top-nav-btn"
+    [class.nav-dark-theme]="themeService.isDarkThemeSignal()"
+    src="/theme.png"
+    (click)="themeService.toggleTheme()" />
+</div>
 @if (mode === 0) {
   <hab-mode-selector></hab-mode-selector>
 } @else {
