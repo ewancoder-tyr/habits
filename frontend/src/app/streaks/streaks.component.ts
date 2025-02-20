@@ -1,6 +1,7 @@
 import { Component, computed, signal, WritableSignal } from '@angular/core';
 import { StreaksService } from '../streaks.service';
 import { HabitsMonthGridComponent } from '../habits-month-grid/habits-month-grid.component';
+import { ThemeService } from '../theme.service';
 
 export interface SelectedMonth {
     year: number;
@@ -21,7 +22,10 @@ export class StreaksComponent {
     protected previousMonthSignal = computed(() => this.getPreviousMonth());
     protected nextMonthSignal = computed(() => this.getNextMonth());
 
-    constructor(private streaksService: StreaksService) {}
+    constructor(
+        private streaksService: StreaksService,
+        protected themeService: ThemeService
+    ) {}
 
     protected createHabit() {
         const habit = prompt('Habit name');

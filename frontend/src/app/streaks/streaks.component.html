@@ -1,7 +1,7 @@
 <div class="controls">
-  <button (click)="moveBack()">◀</button>
-  <button (click)="createHabit()">Add habit</button>
-  <button (click)="moveForward()">▶</button>
+  <button [class.dark-btn]="themeService.isDarkThemeSignal()" (click)="moveBack()">◀</button>
+  <button [class.dark-btn]="themeService.isDarkThemeSignal()" (click)="createHabit()">Add habit</button>
+  <button [class.dark-btn]="themeService.isDarkThemeSignal()" (click)="moveForward()">▶</button>
 </div>
 <hab-habits-month-grid [month]="previousMonthSignal"></hab-habits-month-grid>
 <hab-habits-month-grid [month]="monthSignal"></hab-habits-month-grid>

@@ -15,6 +15,16 @@ button {
   cursor: pointer;
 }
 
+.dark-btn {
+  background-color: rgba(27, 27, 27, 0.844);
+  color: #ddd;
+  border: 1px solid #666;
+}
+
 button:hover {
   background-color: #ddd;
+}
+
+.dark-btn:hover {
+  background-color: rgba(14, 14, 14, 0.844);
 }
