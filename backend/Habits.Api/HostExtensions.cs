@@ -283,6 +283,12 @@ public static class HostExtensions
             .WithSummary("Sign out current user")
             .WithDescription("Signs out current user (removes the cookie) so you can sign in with a different login.")
             .RequireAuthorization();
+
+        // Add diagnostics endpoint.
+        app.MapGet("/diag", () => DateTime.UtcNow)
+            .WithTags("Diagnostics")
+            .WithSummary("Show diagnostics information")
+            .WithDescription("Shows current UTC time of this API pod");
     }
 
     // Hacky implementation to reuse the code.

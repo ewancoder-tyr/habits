@@ -1,7 +1,4 @@
-﻿
-using System.Collections.Concurrent;
-
-namespace Habits.Api;
+﻿namespace Habits.Api;
 
 public sealed class DataSaverHostedService(
     ILogger<DataSaverHostedService> logger,
