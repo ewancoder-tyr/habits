@@ -17,7 +17,7 @@ namespace Habits.Api;
 public sealed record User(string UserId);
 public interface IUserProvider
 {
-    User GetUser();
+    public User GetUser();
 }
 public sealed class GoogleUserProvider(IHttpContextAccessor httpContextAccessor) : IUserProvider
 {

@@ -75,7 +75,7 @@ public sealed class Repository
 
     public void MarkNeedToSave() => _needToSave = true;
 
-    public async ValueTask SaveIfNeedAsync(CancellationToken cancellationToken, ILogger<DataSaverHostedService> logger)
+    public async ValueTask SaveIfNeedAsync(ILogger<DataSaverHostedService> logger, CancellationToken cancellationToken)
     {
         _ = cancellationToken;
 
