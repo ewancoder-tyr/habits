@@ -41,6 +41,7 @@ await app.RunAsync();
 [JsonSerializable(typeof(Created))]
 [JsonSerializable(typeof(CreateHabit))]
 [JsonSerializable(typeof(Dictionary<string, List<Habit>>))]
+[JsonSerializable(typeof(DateTime))]
 internal partial class SerializerContext : JsonSerializerContext
 {
 }
