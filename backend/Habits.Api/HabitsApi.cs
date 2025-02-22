@@ -52,6 +52,7 @@ public static class HabitsApi
         habitsGroup.MapPost("/", CreateHabit);
         habitsGroup.MapPost("/{habitId}/days/{day}", MarkDay);
         habitsGroup.MapDelete("/{habitId}/days/{day}", UnmarkDay);
+        habitsGroup.MapDelete("/{habitId}", DeleteHabit);
 
         return habitsGroup;
     }
@@ -165,6 +166,23 @@ public static class HabitsApi
 
         habit.Days.Remove(day);
         repo.MarkNeedToSave();
+        return TypedResults.Ok(habit);
+    }
+
+    [EndpointSummary("Delete habit")]
+    [Description("Deletes a habit. Cannot be undone!")]
+    private static Results<NoContent> DeleteHabit(
+        [Description("Habit identifier. Same as habit name.")]
+        string habitId,
+        UserScopedRepository repo)
+    {
+        var habits = repo.GetHabits();
+
+        var habit = habits.Find(habit => habit.Name == habitId);
+        if (habit is not null)
+            habits.Remove(habit);
+        repo.MarkNeedToSave();
+
         return TypedResults.Ok(habit);
     }
 }
