@@ -30,6 +30,7 @@ export class StreaksComponent {
     protected createHabit() {
         const habit = prompt('Habit name');
         const lengthDays = prompt('Length of streak (for example 2 means you need to do it every other day)');
+
         if (habit && lengthDays) {
             this.streaksService.createHabit(habit, +lengthDays);
         }

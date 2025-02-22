@@ -35,6 +35,12 @@ export class HabitsMonthGridComponent implements OnInit {
     protected updateHabit(habit: string) {
         const newName = prompt('New name for the habit:');
         const newDays = prompt('New length:');
+
+        if (newName === 'delete' && newDays === 'delete') {
+            this.service.removeHabit(habit);
+            return;
+        }
+
         if (newName && newDays) {
             this.service.updateHabit(habit, {
                 name: newName,

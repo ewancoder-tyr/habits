@@ -12,6 +12,7 @@ interface IHabitStreakRepository {
     update(habitId: string, habit: UpdateHabit): Observable<HabitStreakData>;
     markDay(habit: string, day: number): Observable<HabitStreakData>;
     unmarkDay(habit: string, day: number): Observable<HabitStreakData>;
+    remove(habit: string): Observable<void>;
 }
 
 export enum Mode {
@@ -82,6 +83,14 @@ class LocalHabitStreakRepository implements IHabitStreakRepository {
         this.data.value.push(newHabit);
         this.saveData();
         return of(newHabit);
+    }
+
+    remove(habit: string): Observable<void> {
+        const streak = this.data.value.find(s => s.name === habit);
+        if (!streak) throw new Error('Streak for marking a day was not found.');
+
+        this.data.next(this.data.value.splice(this.data.value.indexOf(streak, 0), 1));
+        return of();
     }
 
     private saveData() {
@@ -223,6 +232,19 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
             )
         );
     }
+
+    remove(habit: string): Observable<void> {
+        return from(this.auth.getToken()).pipe(
+            switchMap(token =>
+                this.http.delete<void>(`https://api.habits.typingrealm.com/api/habits/${habit}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    withCredentials: true
+                })
+            )
+        );
+    }
 }
 
 @Injectable({ providedIn: 'root' })
@@ -291,6 +313,10 @@ export class StreaksService {
 
     public createHabit(habit: string, length: number) {
         this.repo?.create(habit, length).subscribe();
+    }
+
+    public removeHabit(habit: string) {
+        this.repo?.remove(habit).subscribe();
     }
 
     public getMonthDaysSignal(year: number, month: number) {
