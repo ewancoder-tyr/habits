@@ -171,7 +171,7 @@ public static class HabitsApi
 
     [EndpointSummary("Delete habit")]
     [Description("Deletes a habit. Cannot be undone!")]
-    private static Results<NoContent> DeleteHabit(
+    private static NoContent DeleteHabit(
         [Description("Habit identifier. Same as habit name.")]
         string habitId,
         UserScopedRepository repo)
@@ -183,6 +183,6 @@ public static class HabitsApi
             habits.Remove(habit);
         repo.MarkNeedToSave();
 
-        return TypedResults.Ok(habit);
+        return TypedResults.NoContent();
     }
 }
