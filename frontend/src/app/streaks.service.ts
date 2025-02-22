@@ -90,6 +90,7 @@ class LocalHabitStreakRepository implements IHabitStreakRepository {
         if (!streak) throw new Error('Streak for marking a day was not found.');
 
         this.data.next(this.data.value.splice(this.data.value.indexOf(streak, 0), 1));
+        this.saveData();
         return of();
     }
 
@@ -236,12 +237,29 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
     remove(habit: string): Observable<void> {
         return from(this.auth.getToken()).pipe(
             switchMap(token =>
-                this.http.delete<void>(`https://api.habits.typingrealm.com/api/habits/${habit}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    },
-                    withCredentials: true
-                })
+                this.http
+                    .delete<void>(`https://api.habits.typingrealm.com/api/habits/${habit}`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        },
+                        withCredentials: true
+                    })
+                    .pipe(
+                        switchMap(() =>
+                            this.http.get<HabitStreakData[]>(`https://api.habits.typingrealm.com/api/habits`, {
+                                headers: {
+                                    Authorization: `Bearer ${token}`
+                                },
+                                withCredentials: true
+                            })
+                        )
+                    )
+                    .pipe(
+                        tap(habits => {
+                            this.data.next(habits);
+                        }),
+                        map(() => void 0)
+                    )
             )
         );
     }
