@@ -119,7 +119,7 @@ public static class HostExtensions
         // Data protection, needed for Cookie authentication.
         if (!config.IsDebug)
         {
-            var certBytes = await File.ReadAllBytesAsync(config.DataProtectionCertPath);
+            var certBytes = await File.ReadAllBytesAsync(config.DataProtectionCertPath).ConfigureAwait(false);
             var cert = X509CertificateLoader.LoadPkcs12(certBytes, config.DataProtectionCertPassword);
             builder.Services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(config.DataProtectionKeysPath))
@@ -208,7 +208,7 @@ public static class HostExtensions
                             await context.HttpContext.SignInAsync(
                                 CookieAuthenticationDefaults.AuthenticationScheme,
                                 new ClaimsPrincipal(identity),
-                                authProperties);
+                                authProperties).ConfigureAwait(false);
                         }
                     };
                 });
@@ -271,7 +271,7 @@ public static class HostExtensions
         // Add logout endpoint for removing the cookie.
         app.MapPost("/auth/logout", async (HttpResponse _, HttpContext context) =>
         {
-            await context.SignOutAsync();
+            await context.SignOutAsync().ConfigureAwait(false);
             UpdateAuthInfoCookie(
                 null,
                 context,
@@ -336,7 +336,7 @@ internal sealed class BearerSchemeTransformer(IAuthenticationSchemeProvider auth
         OpenApiDocumentTransformerContext context,
         CancellationToken cancellationToken)
     {
-        var authenticationSchemes = await authenticationSchemeProvider.GetAllSchemesAsync();
+        var authenticationSchemes = await authenticationSchemeProvider.GetAllSchemesAsync().ConfigureAwait(false);
         if (authenticationSchemes.Any(authScheme => authScheme.Name == JwtBearerDefaults.AuthenticationScheme))
         {
             var requirements = new Dictionary<string, OpenApiSecurityScheme>

@@ -15,6 +15,7 @@ RUN apt-get update \
     clang zlib1g-dev
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY ["Test/Test.projitems", "Test/"]
 COPY ["Habits.Api/Habits.Api.csproj", "Habits.Api/"]
 COPY ["Directory.Build.props", "./"]
 COPY ["Directory.Packages.props", "./"]
