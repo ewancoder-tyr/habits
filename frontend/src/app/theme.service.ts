@@ -18,11 +18,13 @@ export class ThemeService {
     setDarkTheme() {
         localStorage.setItem('tyr_theme', 'dark');
         document.documentElement.classList.add('dark-theme');
+        document.documentElement.classList.remove('light-theme');
         this.isDarkThemeSignal.set(true);
     }
 
     setWhiteTheme() {
         localStorage.setItem('tyr_theme', 'white');
+        document.documentElement.classList.add('light-theme');
         document.documentElement.classList.remove('dark-theme');
         this.isDarkThemeSignal.set(false);
     }

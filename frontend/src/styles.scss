@@ -1,12 +1,56 @@
-$bgOpacity: 0.95;
-$bgOpacityDarkTheme: 0.9;
+// TODO: Move theming to themes.cscc
+$light-theme: (
+  font-family: 'Lora',
+  primary-color: #111,
+  background-url: url('/bg.webp'),
+  background-filter: rgba(255, 255, 255, 0.95),
+  nav-btn-color: rgba(204, 221, 204, 0.8),
+  btn-color: rgba(238, 238, 238, 0.844),
+  btn-border: 1px solid #ccc,
+  btn-color-hover: #ddd,
+  marked-color: aquamarine,
+  marked-font-color: #888,
+  today-border: 2px solid #c78bf4
+);
 
-html {
-  background: linear-gradient(rgba(255, 255, 255, $bgOpacity), rgba(255, 255, 255, $bgOpacity)), url('/bg.webp');
-  font-family: 'Lora';
+$dark-theme: (
+  font-family: 'Lora',
+  primary-color: #ddd,
+  background-url: url('/bg.webp'),
+  background-filter: rgba(0, 0, 0, 0.9),
+  nav-btn-color: rgba(58, 81, 30, 0.8),
+  btn-color: rgba(27, 27, 27, 0.844),
+  btn-border: 1px solid #666,
+  btn-color-hover: rgba(14, 14, 14, 0.844),
+  marked-color: rgb(39, 127, 98),
+  marked-font-color: white,
+  today-border: 2px solid #723a9d
+);
+
+@mixin theme($theme) {
+  --font-family: #{map-get($theme, font-family)};
+  --primary-color: #{map-get($theme, primary-color)};
+  --background-filter: #{map-get($theme, background-filter)};
+  --background-url: #{map-get($theme, background-url)};
+  --nav-btn-color: #{map-get($theme, nav-btn-color)};
+  --btn-color: #{map-get($theme, btn-color)};
+  --btn-border: #{map-get($theme, btn-border)};
+  --btn-color-hover: #{map-get($theme, btn-color-hover)};
+  --marked-color: #{map-get($theme, marked-color)};
+  --marked-font-color: #{map-get($theme, marked-font-color)};
+  --today-border: #{map-get($theme, today-border)};
+}
+
+.light-theme {
+  @include theme($light-theme);
 }
 
 .dark-theme {
-  background: linear-gradient(rgba(0, 0, 0, $bgOpacityDarkTheme), rgba(0, 0, 0, $bgOpacityDarkTheme)), url('/bg.webp');
-  color: #ddd;
+  @include theme($dark-theme);
+}
+
+html {
+  color: var(--primary-color);
+  background: linear-gradient(var(--background-filter), var(--background-filter)), var(--background-url);
+  font-family: var(--font-family);
 }

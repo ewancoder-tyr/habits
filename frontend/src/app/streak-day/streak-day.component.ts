@@ -31,18 +31,7 @@ export class StreakDayComponent {
     }
 
     protected getClass() {
-        const markedClass = this.getMarkedClass();
-        const themeClass = this.getThemeClass();
-
-        return `${markedClass} ${themeClass}`;
-    }
-
-    protected getThemeClass() {
-        if (this.themeService.isDarkThemeSignal()) {
-            return 'tyr-dark-theme-day';
-        }
-
-        return '';
+        return this.getMarkedClass();
     }
 
     protected getMarkedClass() {

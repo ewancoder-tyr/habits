@@ -7,24 +7,15 @@
 
 button {
   font-weight: bold;
-  border: 1px solid #ccc;
+  border: var(--btn-border);
   height: 40px;
   padding: 14px 10px;
   margin: 5px;
-  background-color: #eee;
+  background-color: var(--btn-color);
   cursor: pointer;
-}
-
-.dark-btn {
-  background-color: rgba(27, 27, 27, 0.844);
-  color: #ddd;
-  border: 1px solid #666;
+  color: var(--primary-color);
 }
 
 button:hover {
-  background-color: #ddd;
-}
-
-.dark-btn:hover {
-  background-color: rgba(14, 14, 14, 0.844);
+  background-color: var(--btn-color-hover);
 }

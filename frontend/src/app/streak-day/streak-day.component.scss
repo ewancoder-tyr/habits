@@ -11,14 +11,9 @@
   cursor: pointer;
   box-sizing: border-box;
 
-  &.marked,
-  &.marked-light {
-    background-color: aquamarine;
-
-    &.tyr-dark-theme-day {
-      background-color: rgb(39, 127, 98);
-      color: white;
-    }
+  &.marked, &.marked-light {
+    background-color: var(--marked-color);
+    color: var(--marked-font-color);
   }
 
   &.marked-light {
@@ -26,10 +21,6 @@
   }
 
   &.today {
-    border: 2px solid #c78bf4;
-
-    &.tyr-dark-theme-day {
-      border: 2px solid #723a9d;
-    }
+    border: var(--today-border)
   }
 }
