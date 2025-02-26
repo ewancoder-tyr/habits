@@ -2,11 +2,8 @@ import { Injectable, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-    public isDarkThemeSignal = signal(false);
-
     constructor() {
         const isDarkTheme = localStorage.getItem('tyr_theme') === 'dark';
-        this.isDarkThemeSignal.set(isDarkTheme);
     }
 
     toggleTheme() {
@@ -19,13 +16,11 @@ export class ThemeService {
         localStorage.setItem('tyr_theme', 'dark');
         document.documentElement.classList.add('dark-theme');
         document.documentElement.classList.remove('light-theme');
-        this.isDarkThemeSignal.set(true);
     }
 
     setWhiteTheme() {
         localStorage.setItem('tyr_theme', 'white');
         document.documentElement.classList.add('light-theme');
         document.documentElement.classList.remove('dark-theme');
-        this.isDarkThemeSignal.set(false);
     }
 }
