@@ -52,10 +52,7 @@ class LocalHabitStreakRepository implements IHabitStreakRepository {
         const streak = this.data.value.find(s => s.name === habit);
         if (!streak) throw new Error('Streak for marking a day was not found.');
 
-        const found = streak.days.find(d => d === day);
-        if (!found) {
-            streak.days.push(day);
-        }
+        streak.days.push(day);
 
         this.saveData();
         return of(streak);
@@ -349,12 +346,17 @@ export class StreaksService {
                 for (const habitData of data) {
                     if (!days[habitData.habit]) days[habitData.habit] = [];
 
-                    const dayStatus = habitData.days[i + startingDayNumber] ?? DayStatus.Empty;
+                    const dayInfo = habitData.days[i + startingDayNumber] ?? {
+                        status: DayStatus.Empty,
+                        timesDone: 0,
+                        timesNeeded: 0
+                    };
+
                     const day: StreakDay = {
                         id: i + startingDayNumber,
                         day: i + 1,
                         habit: habitData.habit,
-                        status: dayStatus
+                        info: dayInfo
                     };
 
                     if (isCurrentMonth && i + 1 === new Date().getDate()) {
@@ -411,13 +413,36 @@ export class StreaksService {
 
     private calculateDays(days: number[], lengthDays: number) {
         const sortedDays = days.sort((a, b) => a - b);
-        const resultDays: Record<number, DayStatus> = {};
+        const resultDays: Record<number, DayInfo> = {};
 
+        let timesNeeded = lengthDays > 1000 ? lengthDays - 1000 : 1;
         for (const day of sortedDays) {
-            resultDays[day] = DayStatus.Successful;
+            if (timesNeeded === 1) {
+                resultDays[day] = {
+                    status: DayStatus.Successful,
+                    timesDone: 1,
+                    timesNeeded: 1
+                };
 
-            for (let additionalDay = 1; additionalDay < lengthDays; additionalDay++) {
-                resultDays[day + additionalDay] = DayStatus.Inherited;
+                for (let additionalDay = 1; additionalDay < lengthDays; additionalDay++) {
+                    resultDays[day + additionalDay] = {
+                        status: DayStatus.Inherited,
+                        timesDone: 0,
+                        timesNeeded: 0
+                    };
+                }
+            } else {
+                const result = resultDays[day] ?? {
+                    status: DayStatus.Empty,
+                    timesDone: 0,
+                    timesNeeded: timesNeeded
+                };
+
+                result.timesDone++;
+                if (result.timesDone === result.timesNeeded) {
+                    result.status = DayStatus.Successful;
+                }
+                resultDays[day] = result;
             }
         }
 
@@ -425,9 +450,15 @@ export class StreaksService {
     }
 }
 
+export interface DayInfo {
+    status: DayStatus;
+    timesDone: number;
+    timesNeeded: number;
+}
+
 export interface HabitStreak {
     habit: string;
-    days: Record<number, DayStatus>;
+    days: Record<number, DayInfo>;
 }
 
 export enum DayStatus {

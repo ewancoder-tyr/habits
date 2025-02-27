@@ -1,1 +1,4 @@
 {{ day.day }}
+@if (day.info.timesNeeded > 1) {
+  <div class="count">{{ day.info.timesDone }} / {{ day.info.timesNeeded }}</div>
+}

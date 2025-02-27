@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { DayStatus, StreaksService } from '../streaks.service';
+import { DayInfo, DayStatus, StreaksService } from '../streaks.service';
 import { ThemeService } from '../theme.service';
 
 @Component({
@@ -10,7 +10,8 @@ import { ThemeService } from '../theme.service';
     host: {
         '[class]': 'getClass()',
         '(click)': 'toggle(this.day)',
-        '[class.today]': 'day.isToday'
+        '[class.today]': 'day.isToday',
+        '(contextmenu)': 'untoggle(this.day, $event)'
     },
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -23,11 +24,24 @@ export class StreakDayComponent {
     ) {}
 
     protected toggle(day: StreakDay) {
-        if (day.status === 1) {
+        if (day.info.timesNeeded > 1) {
+            console.log('test');
+            this.service.mark(day);
+            return;
+        }
+
+        if (day.info.status === 1) {
             this.service.unmark(day);
         } else {
             this.service.mark(day);
         }
+    }
+
+    protected untoggle(day: StreakDay, event: any) {
+        event.preventDefault();
+        if (day.info.timesNeeded <= 1) return;
+
+        this.service.unmark(day);
     }
 
     protected getClass() {
@@ -35,7 +49,7 @@ export class StreakDayComponent {
     }
 
     protected getMarkedClass() {
-        switch (this.day.status) {
+        switch (this.day.info.status) {
             case DayStatus.Successful:
                 return 'marked';
             case DayStatus.Inherited:
@@ -49,7 +63,7 @@ export class StreakDayComponent {
 export interface StreakDay {
     id: number;
     day: number;
-    status: DayStatus;
+    info: DayInfo;
     habit: string;
     isToday?: boolean;
 }
