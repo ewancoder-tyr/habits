@@ -18,7 +18,7 @@ public sealed class Habit
     public required int LengthDays { get; set; }
 
     [Description("Marked days when we've actually done the habit.")]
-    public required HashSet<int> Days { get; set; } = [];
+    public required List<int> Days { get; set; } = [];
 }
 
 internal sealed record Created(
