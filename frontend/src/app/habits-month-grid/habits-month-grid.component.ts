@@ -28,7 +28,10 @@ export class HabitsMonthGridComponent implements OnInit {
         });
         this.monthNameSignal = computed(() => {
             const selectedMonth = this.month();
-            return new Date(selectedMonth.year, selectedMonth.month, 5).toLocaleString('en-US', { month: 'long' });
+            return new Date(selectedMonth.year, selectedMonth.month, 5).toLocaleString('en-US', {
+                month: 'long',
+                year: 'numeric'
+            });
         });
     }
 
