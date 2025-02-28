@@ -402,22 +402,28 @@ export class StreaksService {
 
     private recalculateStreaks(streaks: HabitStreakData[]) {
         const calculated = streaks
-            .map(streak => ({
-                habit: streak.name,
-                days: this.calculateDays(streak.days, streak.lengthDays)
-            }))
-            .sort((a, b) => a.habit.localeCompare(b.habit));
+            .map(streak => {
+                const calculatedDays = this.calculateDays(streak.days, streak.lengthDays);
+                return {
+                    habit: streak.name,
+                    days: calculatedDays.days,
+                    order: calculatedDays.order
+                };
+            })
+            .sort((a, b) => (a.order === b.order ? a.habit.localeCompare(b.habit) : a.order - b.order));
 
         this.streaksSignal.set(calculated);
     }
 
-    private calculateDays(days: number[], lengthDays: number) {
+    private calculateDays(days: number[], lengthDays: number): { days: Record<number, DayInfo>; order: number } {
         const sortedDays = days.sort((a, b) => a - b);
         const resultDays: Record<number, DayInfo> = {};
 
+        let order = 0;
         let timesNeeded = lengthDays > 1000 ? lengthDays - 1000 : 1;
         for (const day of sortedDays) {
             if (timesNeeded === 1) {
+                order = day + lengthDays;
                 resultDays[day] = {
                     status: DayStatus.Successful,
                     timesDone: 1,
@@ -440,6 +446,7 @@ export class StreaksService {
 
                 result.timesDone++;
                 if (result.timesDone >= result.timesNeeded) {
+                    order = day + 1;
                     result.status = DayStatus.Successful;
                 } else if (result.timesDone > 0) {
                     result.status = DayStatus.PartiallyMarked;
@@ -448,7 +455,7 @@ export class StreaksService {
             }
         }
 
-        return resultDays;
+        return { days: resultDays, order: order };
     }
 }
 
@@ -460,6 +467,7 @@ export interface DayInfo {
 
 export interface HabitStreak {
     habit: string;
+    order: number;
     days: Record<number, DayInfo>;
 }
 
