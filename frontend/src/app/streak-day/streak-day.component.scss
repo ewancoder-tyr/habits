@@ -22,6 +22,11 @@
     opacity: 0.5;
   }
 
+  &.marked-partially {
+    background-color: var(--partially-marked-color);
+    opacity: 0.9;
+  }
+
   &.today {
     border: var(--today-border);
   }

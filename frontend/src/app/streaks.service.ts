@@ -439,8 +439,10 @@ export class StreaksService {
                 };
 
                 result.timesDone++;
-                if (result.timesDone === result.timesNeeded) {
+                if (result.timesDone >= result.timesNeeded) {
                     result.status = DayStatus.Successful;
+                } else if (result.timesDone > 0) {
+                    result.status = DayStatus.PartiallyMarked;
                 }
                 resultDays[day] = result;
             }
@@ -464,7 +466,8 @@ export interface HabitStreak {
 export enum DayStatus {
     Empty = 0,
     Successful = 1,
-    Inherited = 2
+    Inherited = 2,
+    PartiallyMarked = 3
 }
 
 interface UpdateHabit {

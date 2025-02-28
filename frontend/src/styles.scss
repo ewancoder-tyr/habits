@@ -10,6 +10,7 @@ $light-theme: (
   btn-color-hover: #ddd,
   marked-color: aquamarine,
   marked-font-color: #888,
+  partially-marked-color: rgba(253, 208, 137, 0.7),
   today-border: 2px solid #c78bf4
 );
 
@@ -24,6 +25,7 @@ $dark-theme: (
   btn-color-hover: rgba(14, 14, 14, 0.844),
   marked-color: rgb(39, 127, 98),
   marked-font-color: white,
+  partially-marked-color: rgba(127, 78, 0, 0.7),
   today-border: 2px solid #723a9d
 );
 
@@ -38,6 +40,7 @@ $dark-theme: (
   --btn-color-hover: #{map-get($theme, btn-color-hover)};
   --marked-color: #{map-get($theme, marked-color)};
   --marked-font-color: #{map-get($theme, marked-font-color)};
+  --partially-marked-color: #{map-get($theme, partially-marked-color)};
   --today-border: #{map-get($theme, today-border)};
 }
 

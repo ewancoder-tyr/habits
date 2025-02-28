@@ -54,6 +54,8 @@ export class StreakDayComponent {
                 return 'marked';
             case DayStatus.Inherited:
                 return 'marked-light';
+            case DayStatus.PartiallyMarked:
+                return 'marked-partially';
             default:
                 return undefined;
         }
