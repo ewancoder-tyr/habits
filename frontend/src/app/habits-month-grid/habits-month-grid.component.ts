@@ -12,6 +12,7 @@ import { SelectedMonth } from '../streaks/streaks.component';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HabitsMonthGridComponent implements OnInit {
+    private order: Record<string, number> = {};
     protected daysSignal!: Signal<[string, StreakDay[]][]>;
     protected monthNameSignal!: Signal<string>;
     @Input() month: Signal<SelectedMonth> = signal({
@@ -24,7 +25,18 @@ export class HabitsMonthGridComponent implements OnInit {
     ngOnInit() {
         this.daysSignal = computed(() => {
             const selectedMonth = this.month();
-            return Object.entries(this.service.getMonthDaysSignal(selectedMonth.year, selectedMonth.month)());
+            const entries = Object.entries(this.service.getMonthDaysSignal(selectedMonth.year, selectedMonth.month)());
+
+            if (Object.keys(this.order).length !== Object.keys(entries).length) {
+                this.order = {};
+                let i = 0;
+                for (const [habit] of entries) {
+                    i++;
+                    this.order[habit] = i;
+                }
+            }
+
+            return entries.sort(([a], [b]) => this.order[a] - this.order[b]);
         });
         this.monthNameSignal = computed(() => {
             const selectedMonth = this.month();
