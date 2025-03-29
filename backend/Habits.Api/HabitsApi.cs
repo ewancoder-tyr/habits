@@ -9,7 +9,9 @@ internal sealed record CreateHabit(
     [property: Description("Amount of days that we don't need to do anything after we did the habit one time.")]
     int LengthDays,
     [property: Description("Order of the habit in the list.")]
-    int? Order = null);
+    int? Order = null,
+    [property: Description("Group of the habit.")]
+    string? Group = null);
 
 public sealed class Habit
 {
@@ -24,6 +26,9 @@ public sealed class Habit
 
     [Description("Order of the habit in the list.")]
     public int? Order { get; set; }
+
+    [Description("Group for the habit")]
+    public string? Group { get; set; }
 }
 
 internal sealed record Created(
@@ -107,6 +112,7 @@ public static class HabitsApi
         habit.Name = body.Name;
         habit.LengthDays = body.LengthDays;
         habit.Order = body.Order;
+        habit.Group = body.Group;
         repo.MarkNeedToSave();
         return TypedResults.Ok(habit);
     }
@@ -128,7 +134,8 @@ public static class HabitsApi
             Name = body.Name,
             LengthDays = body.LengthDays,
             Days = [],
-            Order = body.Order
+            Order = body.Order,
+            Group = body.Group
         };
 
         repo.AddHabit(habit);
