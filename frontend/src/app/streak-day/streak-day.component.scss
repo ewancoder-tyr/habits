@@ -12,6 +12,12 @@
   cursor: pointer;
   box-sizing: border-box;
 
+  @media screen and (max-width: 1600px) {
+    width: 30px;
+    height: 30px;
+    line-height: 25px;
+  }
+
   &.marked,
   &.marked-light {
     background-color: var(--marked-color);
@@ -33,8 +39,14 @@
 }
 
 .count {
-  top: -10px;
-  left: 3px;
+  top: -11px;
+  left: 7px;
   position: absolute;
   font-size: 0.7em;
+
+  @media screen and (max-width: 1600px) {
+    top: -8px;
+    left: 3px;
+    font-size: 0.6em;
+  }
 }

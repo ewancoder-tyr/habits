@@ -2,15 +2,20 @@
   display: grid;
   grid-template-columns: 300px 1fr;
   grid-template-rows: repeat(2, auto);
+  row-gap: 5px;
 }
 
 .habit-title {
   padding: 0px;
   margin: 0px 5px;
-  line-height: 44px;
+  line-height: 40px;
   font-weight: bold;
   cursor: pointer;
   padding: 15px;
+
+  @media screen and (max-width: 1600px) {
+    line-height: 30px;
+  }
 }
 
 .habit-title:hover {
