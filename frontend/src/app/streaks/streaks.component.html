@@ -4,5 +4,5 @@
   <button (click)="moveForward()">▶</button>
 </div>
 <!--<hab-habits-month-grid [month]="previousMonthSignal"></hab-habits-month-grid>-->
-<hab-habits-month-grid [month]="monthSignal"></hab-habits-month-grid>
+<hab-habit-groups [monthSignal]="monthSignal" [groupsSignal]="groupsSignal"></hab-habit-groups>
 <!--<hab-habits-month-grid [month]="nextMonthSignal"></hab-habits-month-grid>-->

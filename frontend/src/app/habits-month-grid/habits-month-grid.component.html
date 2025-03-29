@@ -1,5 +1,5 @@
-<h2></h2>
-<h2>{{ monthNameSignal() }}</h2>
+<h4></h4>
+<h4>{{ group }}</h4>
 @for (habit of daysSignal(); track habit[0]) {
   <div>
     <span class="habit-title" (click)="updateHabit(habit[0])">{{ habit[0] }}</span>

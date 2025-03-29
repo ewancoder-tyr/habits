@@ -71,9 +71,10 @@ class LocalHabitStreakRepository implements IHabitStreakRepository {
         return of(streak);
     }
 
-    create(habit: string, length: number): Observable<HabitStreakData> {
+    create(habit: string, length: number, habitGroup?: string): Observable<HabitStreakData> {
         const newHabit = {
             name: habit,
+            group: habitGroup,
             lengthDays: length,
             days: []
         };
@@ -265,6 +266,7 @@ class ApiHabitStreakRepository implements IHabitStreakRepository {
 @Injectable({ providedIn: 'root' })
 export class StreaksService {
     private earliestSupportedYear = 2020;
+    public groupsSignal = signal<HabitGroup[]>([]);
     public streaksSignal = signal<HabitStreak[]>([]);
 
     private repo: IHabitStreakRepository | undefined;
@@ -334,12 +336,16 @@ export class StreaksService {
         this.repo?.remove(habit).subscribe();
     }
 
-    public getMonthDaysSignal(year: number, month: number) {
+    public getMonthDaysSignal(year: number, month: number, group?: string | null) {
+        if (!group) group = null;
         const isCurrentMonth = year === new Date().getFullYear() && month === new Date().getMonth();
         const startingDayNumber = this.getStartingDayNumber(year, month);
         const daysAmount = this.getDaysInMonth(year, month);
         const monthDaysSignal = computed(() => {
-            const data = this.streaksSignal();
+            console.log(this.streaksSignal());
+            console.log(this.groupsSignal());
+            const data = this.groupsSignal().find(g => g.group === group)?.streaks ?? [];
+            // TODO: throw an error when empty.
 
             const days: Record<string, StreakDay[]> = {};
             for (let i = 0; i < daysAmount; i++) {
@@ -407,12 +413,36 @@ export class StreaksService {
                 return {
                     habit: streak.name,
                     days: calculatedDays.days,
-                    order: calculatedDays.order
+                    order: calculatedDays.order,
+                    group: streak.group
                 };
             })
             .sort((a, b) => (a.order === b.order ? a.habit.localeCompare(b.habit) : a.order - b.order));
 
+        const groups: HabitGroup[] = [];
+        for (let streak of calculated) {
+            console.log(streak.group);
+            let group = groups.find(g => g.group === streak.group);
+            if (!group) {
+                group = {
+                    group: streak.group,
+                    streaks: []
+                };
+                groups.push(group);
+            }
+
+            group.streaks.push(streak);
+        }
+
         this.streaksSignal.set(calculated);
+        this.groupsSignal.set(
+            groups.sort((a, b) => {
+                const aS = a.group ? a.group : 'zzzzzz';
+                const bS = b.group ? b.group : 'zzzzzz';
+
+                return aS.localeCompare(bS);
+            })
+        );
     }
 
     private calculateDays(days: number[], lengthDays: number): { days: Record<number, DayInfo>; order: number } {
@@ -471,6 +501,11 @@ export interface HabitStreak {
     days: Record<number, DayInfo>;
 }
 
+export interface HabitGroup {
+    group?: string;
+    streaks: HabitStreak[];
+}
+
 export enum DayStatus {
     Empty = 0,
     Successful = 1,
@@ -481,10 +516,12 @@ export enum DayStatus {
 interface UpdateHabit {
     name: string;
     lengthDays: number;
+    group: string | null;
 }
 
 interface HabitStreakData {
     name: string;
+    group?: string;
     lengthDays: number;
     days: number[];
 }

@@ -14,18 +14,20 @@ import { SelectedMonth } from '../streaks/streaks.component';
 export class HabitsMonthGridComponent implements OnInit {
     private order: Record<string, number> = {};
     protected daysSignal!: Signal<[string, StreakDay[]][]>;
-    protected monthNameSignal!: Signal<string>;
     @Input() month: Signal<SelectedMonth> = signal({
         year: new Date().getFullYear(),
         month: new Date().getMonth()
     });
+    @Input({ required: true }) group!: string | null | undefined;
 
     constructor(private service: StreaksService) {}
 
     ngOnInit() {
         this.daysSignal = computed(() => {
             const selectedMonth = this.month();
-            const entries = Object.entries(this.service.getMonthDaysSignal(selectedMonth.year, selectedMonth.month)());
+            const entries = Object.entries(
+                this.service.getMonthDaysSignal(selectedMonth.year, selectedMonth.month, this.group)()
+            );
 
             if (Object.keys(this.order).length !== Object.keys(entries).length) {
                 this.order = {};
@@ -38,20 +40,15 @@ export class HabitsMonthGridComponent implements OnInit {
 
             return entries.sort(([a], [b]) => this.order[a] - this.order[b]);
         });
-        this.monthNameSignal = computed(() => {
-            const selectedMonth = this.month();
-            return new Date(selectedMonth.year, selectedMonth.month, 5).toLocaleString('en-US', {
-                month: 'long',
-                year: 'numeric'
-            });
-        });
     }
 
     protected updateHabit(habit: string) {
         const newName = prompt('New name for the habit:');
         const newDays = prompt('New length:');
+        let group = prompt('Group:');
+        if (group === '') group = null;
 
-        if (newName === 'delete' && newDays === 'delete') {
+        if (newName === 'delete' && newDays === 'delete' && group === 'delete') {
             this.service.removeHabit(habit);
             return;
         }
@@ -59,7 +56,8 @@ export class HabitsMonthGridComponent implements OnInit {
         if (newName && newDays) {
             this.service.updateHabit(habit, {
                 name: newName,
-                lengthDays: +newDays
+                lengthDays: +newDays,
+                group: group
             });
         }
     }

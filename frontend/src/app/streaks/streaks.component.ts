@@ -1,7 +1,7 @@
-import { Component, computed, signal, WritableSignal } from '@angular/core';
-import { StreaksService } from '../streaks.service';
-import { HabitsMonthGridComponent } from '../habits-month-grid/habits-month-grid.component';
+import { Component, computed, Signal, signal, WritableSignal } from '@angular/core';
+import { HabitGroup, StreaksService } from '../streaks.service';
 import { ThemeService } from '../theme.service';
+import { HabitGroupsComponent } from '../habit-groups/habit-groups.component';
 
 export interface SelectedMonth {
     year: number;
@@ -10,7 +10,7 @@ export interface SelectedMonth {
 
 @Component({
     selector: 'hab-streaks',
-    imports: [HabitsMonthGridComponent],
+    imports: [HabitGroupsComponent],
     templateUrl: './streaks.component.html',
     styleUrl: './streaks.component.scss'
 })
@@ -21,11 +21,14 @@ export class StreaksComponent {
     });
     protected previousMonthSignal = computed(() => this.getPreviousMonth());
     protected nextMonthSignal = computed(() => this.getNextMonth());
+    protected groupsSignal: Signal<HabitGroup[]>;
 
     constructor(
         private streaksService: StreaksService,
         protected themeService: ThemeService
-    ) {}
+    ) {
+        this.groupsSignal = streaksService.groupsSignal;
+    }
 
     protected createHabit() {
         const habit = prompt('Habit name');
