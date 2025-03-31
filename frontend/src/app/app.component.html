@@ -1,13 +1,10 @@
-@let mode = streaksService.modeSignal();
+@let mode = modeService.modeSignal();
 @let needsAuth = auth.needsAuthSignal();
 <hab-auth></hab-auth>
 
 <div class="top-nav">
   <img class="top-nav-btn" src="/favicon.ico" (click)="resetMode()" />
-  <img
-    class="top-nav-btn"
-    src="/theme.png"
-    (click)="themeService.toggleTheme()" />
+  <img class="top-nav-btn" src="/theme.png" (click)="themeService.toggleTheme()" />
 </div>
 @if (mode === 0) {
   <hab-mode-selector></hab-mode-selector>

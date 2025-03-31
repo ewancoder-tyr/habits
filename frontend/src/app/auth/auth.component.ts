@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, signal, ViewChild } from '@angular/core';
 import { initializeGoogleAuth } from '../google-auth';
 import { AuthService } from '../auth.service';
-import { Mode, StreaksService } from '../streaks.service';
+import { Mode, ModeService } from '../habit-repository.service';
 
 @Component({
     selector: 'hab-auth',
@@ -10,7 +10,7 @@ import { Mode, StreaksService } from '../streaks.service';
     styleUrl: './auth.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
-        '[class.hidden]': 'streaksService.modeSignal() !== 2'
+        '[class.hidden]': 'modeService.modeSignal() !== 2'
     }
 })
 export class AuthComponent {
@@ -22,10 +22,10 @@ export class AuthComponent {
 
     constructor(
         protected auth: AuthService,
-        protected streaksService: StreaksService
+        protected modeService: ModeService
     ) {
         effect(() => {
-            if (auth.needsAuthSignal() && streaksService.modeSignal() === Mode.Server) this.auth.getToken();
+            if (auth.needsAuthSignal() && modeService.modeSignal() === Mode.Server) this.auth.getToken();
         });
     }
 }

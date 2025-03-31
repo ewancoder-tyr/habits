@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { Mode, StreaksService } from '../streaks.service';
+import { StreaksService } from '../streaks.service';
+import { Mode, ModeService } from '../habit-repository.service';
 
 @Component({
     selector: 'hab-mode-selector',
@@ -9,13 +10,13 @@ import { Mode, StreaksService } from '../streaks.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ModeSelectorComponent {
-    constructor(private streaksService: StreaksService) {}
+    constructor(private modeService: ModeService) {}
 
     protected selectLocal() {
-        this.streaksService.setMode(Mode.Local);
+        this.modeService.setMode(Mode.Local);
     }
 
     protected selectApi() {
-        this.streaksService.setMode(Mode.Server);
+        this.modeService.setMode(Mode.Server);
     }
 }

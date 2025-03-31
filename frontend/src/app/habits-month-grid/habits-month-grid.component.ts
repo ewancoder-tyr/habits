@@ -18,7 +18,7 @@ export class HabitsMonthGridComponent implements OnInit {
         year: new Date().getFullYear(),
         month: new Date().getMonth()
     });
-    @Input({ required: true }) group!: string | null | undefined;
+    @Input({ required: true }) group!: string | undefined;
 
     constructor(private service: StreaksService) {}
 
@@ -45,8 +45,8 @@ export class HabitsMonthGridComponent implements OnInit {
     protected updateHabit(habit: string) {
         const newName = prompt('New name for the habit:');
         const newDays = prompt('New length:');
-        let group = prompt('Group:');
-        if (group === '') group = null;
+        let group: string | null | undefined = prompt('Group:');
+        if (group === '' || group === null) group = undefined;
 
         if (newName === 'delete' && newDays === 'delete' && group === 'delete') {
             this.service.removeHabit(habit);

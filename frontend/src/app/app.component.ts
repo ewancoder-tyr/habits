@@ -3,8 +3,9 @@ import { RouterOutlet } from '@angular/router';
 import { AuthComponent } from './auth/auth.component';
 import { AuthService } from './auth.service';
 import { ModeSelectorComponent } from './mode-selector/mode-selector.component';
-import { Mode, StreaksService } from './streaks.service';
+import { StreaksService } from './streaks.service';
 import { ThemeService } from './theme.service';
+import { Mode, ModeService } from './habit-repository.service';
 
 @Component({
     selector: 'hab-root',
@@ -17,10 +18,11 @@ export class AppComponent {
     constructor(
         protected auth: AuthService,
         protected streaksService: StreaksService,
-        protected themeService: ThemeService
+        protected themeService: ThemeService,
+        protected modeService: ModeService
     ) {}
 
     resetMode() {
-        this.streaksService.setMode(Mode.Unset);
+        this.modeService.setMode(Mode.Unset);
     }
 }
