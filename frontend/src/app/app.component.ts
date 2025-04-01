@@ -5,7 +5,8 @@ import { AuthService } from './auth.service';
 import { ModeSelectorComponent } from './mode-selector/mode-selector.component';
 import { StreaksService } from './streaks.service';
 import { ThemeService } from './theme.service';
-import { Mode, ModeService } from './habit-repository.service';
+import { ModeService } from './state-management/mode.service';
+import { Mode } from './state-management/mode.service';
 
 @Component({
     selector: 'hab-root',

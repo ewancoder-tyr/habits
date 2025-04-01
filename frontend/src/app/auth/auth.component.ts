@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, effect, ElementRef, HostListener, signal, ViewChild } from '@angular/core';
 import { initializeGoogleAuth } from '../google-auth';
 import { AuthService } from '../auth.service';
-import { Mode, ModeService } from '../habit-repository.service';
+import { ModeService } from '../state-management/mode.service';
+import { Mode } from '../state-management/mode.service';
 
 @Component({
     selector: 'hab-auth',

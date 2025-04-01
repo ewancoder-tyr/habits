@@ -1,6 +1,8 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
-import { CachedHabitRepository, Habit, UpdateHabit } from './habit-repository.service';
+import { CachedHabitRepository } from './state-management/cached.habit.repository';
+import { UpdateHabit } from './state-management/models';
+import { Habit } from './state-management/models';
 
 @Injectable({ providedIn: 'root' })
 export class StreaksService {
