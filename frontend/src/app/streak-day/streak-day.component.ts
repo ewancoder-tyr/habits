@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { DayInfo, DayStatus, StreaksService } from '../streaks.service';
 import { ThemeService } from '../theme.service';
+import { CachedHabitRepository } from '../state-management/cached.habit.repository';
 
 @Component({
     selector: 'hab-streak-day',
@@ -20,20 +21,20 @@ export class StreakDayComponent {
 
     constructor(
         private service: StreaksService,
+        private repo: CachedHabitRepository,
         protected themeService: ThemeService
     ) {}
 
     protected toggle(day: StreakDay) {
         if (day.info.timesNeeded > 1) {
-            console.log('test');
-            this.service.mark(day);
+            this.repo.markDay(day.habit, day.id).subscribe();
             return;
         }
 
         if (day.info.status === 1) {
-            this.service.unmark(day);
+            this.repo.unmarkDay(day.habit, day.id).subscribe();
         } else {
-            this.service.mark(day);
+            this.repo.markDay(day.habit, day.id).subscribe();
         }
     }
 
@@ -41,7 +42,7 @@ export class StreakDayComponent {
         event.preventDefault();
         if (day.info.timesNeeded <= 1) return;
 
-        this.service.unmark(day);
+        this.repo.unmarkDay(day.habit, day.id).subscribe();
     }
 
     protected getClass() {

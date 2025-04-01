@@ -3,6 +3,8 @@ import { StreaksService } from '../streaks.service';
 import { StreakDay } from '../streak-day/streak-day.component';
 import { StreakLineComponent } from '../streak-line/streak-line.component';
 import { SelectedMonth } from '../streaks/streaks.component';
+import { UiHabitService } from '../state-management/ui-habit.service';
+import { CachedHabitRepository } from '../state-management/cached.habit.repository';
 
 @Component({
     selector: 'hab-habits-month-grid',
@@ -20,13 +22,16 @@ export class HabitsMonthGridComponent implements OnInit {
     });
     @Input({ required: true }) group!: string | undefined;
 
-    constructor(private service: StreaksService) {}
+    constructor(
+        private streaksService: StreaksService,
+        private repo: CachedHabitRepository
+    ) {}
 
     ngOnInit() {
         this.daysSignal = computed(() => {
             const selectedMonth = this.month();
             const entries = Object.entries(
-                this.service.getMonthDaysSignal(selectedMonth.year, selectedMonth.month, this.group)()
+                this.streaksService.getMonthDaysSignal(selectedMonth.year, selectedMonth.month, this.group)()
             );
 
             if (Object.keys(this.order).length !== Object.keys(entries).length) {
@@ -49,16 +54,18 @@ export class HabitsMonthGridComponent implements OnInit {
         if (group === '' || group === null) group = undefined;
 
         if (newName === 'delete' && newDays === 'delete' && group === 'delete') {
-            this.service.removeHabit(habit);
+            this.repo.remove(habit).subscribe();
             return;
         }
 
         if (newName && newDays) {
-            this.service.updateHabit(habit, {
-                name: newName,
-                lengthDays: +newDays,
-                group: group
-            });
+            this.repo
+                .update(habit, {
+                    name: newName,
+                    lengthDays: +newDays,
+                    group: group
+                })
+                .subscribe();
         }
     }
 }

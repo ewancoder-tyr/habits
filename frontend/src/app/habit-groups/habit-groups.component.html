@@ -1,4 +1,4 @@
 <h2>{{ monthNameSignal() }}</h2>
-@for (group of groupsSignal(); track group.group) {
+@for (group of groupedHabitsSignal(); track group.group) {
   <hab-habits-month-grid [month]="monthSignal" [group]="group.group"></hab-habits-month-grid>
 }

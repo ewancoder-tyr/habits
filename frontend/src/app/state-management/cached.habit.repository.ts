@@ -89,7 +89,7 @@ export class CachedHabitRepository implements IHabitRepository {
     }
 
     private updateHabit(habitId: string, habit: Habit) {
-        console.log(this.data.value);
+        console.log('updating cached value', this.data.value, habit);
         const existing = this.data.value.find(h => h.name === habitId);
         if (!existing) throw new Error('Existing habit not found.');
 

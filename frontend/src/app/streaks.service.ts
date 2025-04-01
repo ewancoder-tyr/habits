@@ -1,42 +1,14 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, Injectable, Signal, signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
-import { CachedHabitRepository } from './state-management/cached.habit.repository';
-import { UpdateHabit } from './state-management/models';
-import { Habit } from './state-management/models';
+import { UiHabitGroup, UiHabitService } from './state-management/ui-habit.service';
 
 @Injectable({ providedIn: 'root' })
 export class StreaksService {
     private earliestSupportedYear = 2020;
-    public groupsSignal = signal<HabitGroup[]>([]);
-    public streaksSignal = signal<HabitStreak[]>([]);
+    public groupedHabitsSignal: Signal<UiHabitGroup[]>;
 
-    constructor(private repo: CachedHabitRepository) {
-        this.repo.getAll().subscribe(habits => this.recalculateStreaks(habits));
-    }
-
-    public updateHabit(id: string, update: UpdateHabit) {
-        this.repo.update(id, update).subscribe();
-    }
-
-    public mark(day: StreakDay) {
-        this.repo.markDay(day.habit, day.id).subscribe();
-    }
-
-    public unmark(day: StreakDay) {
-        this.repo.unmarkDay(day.habit, day.id).subscribe();
-    }
-
-    public createHabit(habit: string, length: number) {
-        this.repo
-            .create({
-                name: habit,
-                lengthDays: length
-            })
-            .subscribe();
-    }
-
-    public removeHabit(habit: string) {
-        this.repo.remove(habit).subscribe();
+    constructor(uiHabitService: UiHabitService) {
+        this.groupedHabitsSignal = uiHabitService.groupedHabitsSignal;
     }
 
     public getMonthDaysSignal(year: number, month: number, group?: string) {
@@ -44,17 +16,17 @@ export class StreaksService {
         const startingDayNumber = this.getStartingDayNumber(year, month);
         const daysAmount = this.getDaysInMonth(year, month);
         const monthDaysSignal = computed(() => {
-            const groups = this.groupsSignal();
+            const groups = this.groupedHabitsSignal();
 
-            const data = groups.find(g => g.group === group)?.streaks ?? [];
+            const data = groups.find(g => g.group === group)?.habits ?? [];
             // TODO: throw an error when empty.
 
             const days: Record<string, StreakDay[]> = {};
             for (let i = 0; i < daysAmount; i++) {
                 for (const habitData of data) {
-                    if (!days[habitData.habit]) days[habitData.habit] = [];
+                    if (!days[habitData.name]) days[habitData.name] = [];
 
-                    const dayInfo = habitData.days[i + startingDayNumber] ?? {
+                    const dayInfo = habitData.streakDays[i + startingDayNumber] ?? {
                         status: DayStatus.Empty,
                         timesDone: 0,
                         timesNeeded: 0
@@ -63,7 +35,7 @@ export class StreaksService {
                     const day: StreakDay = {
                         id: i + startingDayNumber,
                         day: i + 1,
-                        habit: habitData.habit,
+                        habit: habitData.name,
                         info: dayInfo
                     };
 
@@ -71,7 +43,7 @@ export class StreaksService {
                         day.isToday = true;
                     }
 
-                    days[habitData.habit].push(day);
+                    days[habitData.name].push(day);
                 }
             }
 
@@ -106,88 +78,6 @@ export class StreaksService {
 
     private getDaysInMonth(year: number, month: number): number {
         return new Date(year, month + 1, 0).getDate();
-    }
-
-    private recalculateStreaks(streaks: Habit[]) {
-        const calculated = streaks
-            .map(streak => {
-                const calculatedDays = this.calculateDays(streak.days, streak.lengthDays);
-                return {
-                    habit: streak.name,
-                    days: calculatedDays.days,
-                    order: calculatedDays.order,
-                    group: streak.group
-                };
-            })
-            .sort((a, b) => (a.order === b.order ? a.habit.localeCompare(b.habit) : a.order - b.order));
-
-        const groups: HabitGroup[] = [];
-        for (let streak of calculated) {
-            console.log(streak.group);
-            let group = groups.find(g => g.group === streak.group);
-            if (!group) {
-                group = {
-                    group: streak.group,
-                    streaks: []
-                };
-                groups.push(group);
-            }
-
-            group.streaks.push(streak);
-        }
-
-        this.streaksSignal.set(calculated);
-        this.groupsSignal.set(
-            groups.sort((a, b) => {
-                const aS = a.group ? a.group : 'zzzzzz';
-                const bS = b.group ? b.group : 'zzzzzz';
-
-                return aS.localeCompare(bS);
-            })
-        );
-    }
-
-    private calculateDays(days: number[], lengthDays: number): { days: Record<number, DayInfo>; order: number } {
-        const sortedDays = days.sort((a, b) => a - b);
-        const resultDays: Record<number, DayInfo> = {};
-
-        let order = 0;
-        let timesNeeded = lengthDays > 1000 ? lengthDays - 1000 : 1;
-        for (const day of sortedDays) {
-            if (timesNeeded === 1) {
-                order = day + lengthDays;
-                resultDays[day] = {
-                    status: DayStatus.Successful,
-                    timesDone: 1,
-                    timesNeeded: 1
-                };
-
-                for (let additionalDay = 1; additionalDay < lengthDays; additionalDay++) {
-                    resultDays[day + additionalDay] = {
-                        status: DayStatus.Inherited,
-                        timesDone: 0,
-                        timesNeeded: 0
-                    };
-                }
-            } else {
-                const result = resultDays[day] ?? {
-                    status: DayStatus.Empty,
-                    timesDone: 0,
-                    timesNeeded: timesNeeded
-                };
-
-                result.timesDone++;
-                if (result.timesDone >= result.timesNeeded) {
-                    order = day + 1;
-                    result.status = DayStatus.Successful;
-                } else if (result.timesDone > 0) {
-                    result.status = DayStatus.PartiallyMarked;
-                }
-                resultDays[day] = result;
-            }
-        }
-
-        return { days: resultDays, order: order };
     }
 }
 

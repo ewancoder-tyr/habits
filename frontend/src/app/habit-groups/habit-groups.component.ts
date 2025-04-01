@@ -2,6 +2,7 @@ import { Component, computed, Input, OnInit, Signal } from '@angular/core';
 import { HabitsMonthGridComponent } from '../habits-month-grid/habits-month-grid.component';
 import { SelectedMonth } from '../streaks/streaks.component';
 import { HabitGroup } from '../streaks.service';
+import { UiHabitGroup } from '../state-management/ui-habit.service';
 
 @Component({
     selector: 'hab-habit-groups',
@@ -12,7 +13,7 @@ import { HabitGroup } from '../streaks.service';
 export class HabitGroupsComponent implements OnInit {
     protected monthNameSignal!: Signal<string>;
     @Input({ required: true }) monthSignal!: Signal<SelectedMonth>;
-    @Input({ required: true }) groupsSignal!: Signal<HabitGroup[]>;
+    @Input({ required: true }) groupedHabitsSignal!: Signal<UiHabitGroup[]>;
 
     ngOnInit() {
         this.monthNameSignal = computed(() => {
