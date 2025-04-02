@@ -1,41 +1,36 @@
-import { computed, Injectable, Signal, signal } from '@angular/core';
+import { computed, Injectable, Signal } from '@angular/core';
 import { StreakDay } from './streak-day/streak-day.component';
-import { UiHabitGroup, UiHabitService } from './state-management/ui-habit.service';
+import { UiHabitService } from './state-management/ui-habit.service';
 
 @Injectable({ providedIn: 'root' })
 export class StreaksService {
     private earliestSupportedYear = 2020;
-    public groupedHabitsSignal: Signal<UiHabitGroup[]>;
 
-    constructor(uiHabitService: UiHabitService) {
-        this.groupedHabitsSignal = uiHabitService.groupedHabitsSignal;
-    }
+    constructor(private uiHabitService: UiHabitService) {}
 
     public getMonthDaysSignal(year: number, month: number, group?: string) {
         const isCurrentMonth = year === new Date().getFullYear() && month === new Date().getMonth();
-        const startingDayNumber = this.getStartingDayNumber(year, month);
+        const startingDayId = this.getStartingDayNumber(year, month);
         const daysAmount = this.getDaysInMonth(year, month);
         const monthDaysSignal = computed(() => {
-            const groups = this.groupedHabitsSignal();
+            const groups = this.uiHabitService.groupedHabitsSignal();
+            const habits = groups.find(g => g.group === group)?.habits ?? [];
 
-            const data = groups.find(g => g.group === group)?.habits ?? [];
-            // TODO: throw an error when empty.
-
-            const days: Record<string, StreakDay[]> = {};
+            const habitDays: Record<string, StreakDay[]> = {};
             for (let i = 0; i < daysAmount; i++) {
-                for (const habitData of data) {
-                    if (!days[habitData.name]) days[habitData.name] = [];
+                for (const habit of habits) {
+                    if (!habitDays[habit.name]) habitDays[habit.name] = [];
 
-                    const dayInfo = habitData.streakDays[i + startingDayNumber] ?? {
+                    const dayInfo = habit.streakDays[i + startingDayId] ?? {
                         status: DayStatus.Empty,
                         timesDone: 0,
                         timesNeeded: 0
                     };
 
                     const day: StreakDay = {
-                        id: i + startingDayNumber,
+                        id: i + startingDayId,
                         day: i + 1,
-                        habit: habitData.name,
+                        habit: habit.name,
                         info: dayInfo
                     };
 
@@ -43,11 +38,11 @@ export class StreaksService {
                         day.isToday = true;
                     }
 
-                    days[habitData.name].push(day);
+                    habitDays[habit.name].push(day);
                 }
             }
 
-            return days;
+            return habitDays;
         });
 
         return monthDaysSignal;
@@ -104,16 +99,3 @@ export enum DayStatus {
     Inherited = 2,
     PartiallyMarked = 3
 }
-
-/*interface UpdateHabit {
-    name: string;
-    lengthDays: number;
-    group: string | null;
-}*/
-
-/*interface HabitStreakData {
-    name: string;
-    group?: string;
-    lengthDays: number;
-    days: number[];
-}*/
