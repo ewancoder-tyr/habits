@@ -7,7 +7,7 @@
   "arrowParens": "avoid",
   "trailingComma": "none",
   "bracketSameLine": true,
-  "printWidth": 130,
+  "printWidth": 100,
   "overrides": [
     {
       "files": "**/*.(html|json|css|scss)",

@@ -9,13 +9,16 @@ export class StreaksService {
     constructor(private uiHabitService: UiHabitService) {}
 
     public getMonthDaysSignal(year: number, month: number, group?: string) {
-        const isCurrentMonth = year === new Date().getFullYear() && month === new Date().getMonth();
-        const startingDayId = this.getStartingDayNumber(year, month);
+        const isCurrentMonth = this.isCurrentMonth(year, month);
+
+        // Days are counted from 2020 1st of January 1..2..3..etc, e.g. 2021 1st of January will be 366.
+        const startingDayId = this.getFirstDayOfMonth(year, month);
         const daysAmount = this.getDaysInMonth(year, month);
         const monthDaysSignal = computed(() => {
             const groups = this.uiHabitService.groupedHabitsSignal();
             const habits = groups.find(g => g.group === group)?.habits ?? [];
 
+            // StreakDay is a model for the component that shows the days.
             const habitDays: Record<string, StreakDay[]> = {};
             for (let i = 0; i < daysAmount; i++) {
                 for (const habit of habits) {
@@ -48,23 +51,29 @@ export class StreaksService {
         return monthDaysSignal;
     }
 
-    private getStartingDayNumber(year: number, month: number): number {
+    private getFirstDayOfMonth(year: number, month: number): number {
+        if (year < this.earliestSupportedYear) throw new Error('Unsupported year.');
+
         const additionalDaysFromYear =
-            year === this.earliestSupportedYear
-                ? 0
-                : Array.from(Array(year - this.earliestSupportedYear).keys())
-                      .map(x => x + this.earliestSupportedYear)
-                      .map(year => this.getDaysInYear(year))
-                      .reduce((partialSum, a) => partialSum + a, 0);
+            year === this.earliestSupportedYear ? 0 : this.getAmountOfDaysTillYear(year);
 
         const additionalDaysFromMonth =
-            month === 0
-                ? 0
-                : Array.from(Array(month).keys())
-                      .map(month => this.getDaysInMonth(year, month))
-                      .reduce((partialSum, a) => partialSum + a, 0);
+            month === 0 ? 0 : this.getAmountOfDaysTillMonth(year, month);
 
         return additionalDaysFromYear + additionalDaysFromMonth + 1;
+    }
+
+    private getAmountOfDaysTillYear(year: number) {
+        return Array.from(Array(year - this.earliestSupportedYear).keys())
+            .map(x => x + this.earliestSupportedYear)
+            .map(year => this.getDaysInYear(year))
+            .reduce((partialSum, a) => partialSum + a, 0);
+    }
+
+    private getAmountOfDaysTillMonth(year: number, month: number) {
+        return Array.from(Array(month).keys())
+            .map(month => this.getDaysInMonth(year, month))
+            .reduce((partialSum, a) => partialSum + a, 0);
     }
 
     private getDaysInYear(year: number): number {
@@ -73,6 +82,11 @@ export class StreaksService {
 
     private getDaysInMonth(year: number, month: number): number {
         return new Date(year, month + 1, 0).getDate();
+    }
+
+    private isCurrentMonth(year: number, month: number) {
+        const now = new Date();
+        return year === now.getFullYear() && month === now.getMonth();
     }
 }
 
