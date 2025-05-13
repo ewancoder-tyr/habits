@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using Habits.Api;
+using Tyr.Framework;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 var isDebug = false;

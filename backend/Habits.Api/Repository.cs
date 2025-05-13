@@ -1,4 +1,6 @@
-﻿namespace Habits.Api;
+﻿using Tyr.Framework;
+
+namespace Habits.Api;
 
 public sealed class UserScopedRepository(Repository repo, User user)
 {

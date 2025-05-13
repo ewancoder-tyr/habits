@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authentication;
@@ -11,8 +11,10 @@ using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+using StackExchange.Redis;
 
-namespace Habits.Api;
+// ReSharper disable once CheckNamespace
+namespace Tyr.Framework;
 
 public sealed record User(string UserId);
 public interface IUserProvider
@@ -32,6 +34,7 @@ public sealed class GoogleUserProvider(IHttpContextAccessor httpContextAccessor)
 }
 
 public sealed record TyrHostConfiguration(
+    string? CacheConnectionString,
     string DataProtectionKeysPath,
     string DataProtectionCertPath,
     string DataProtectionCertPassword,
@@ -40,14 +43,19 @@ public sealed record TyrHostConfiguration(
     TimeSpan AuthCookieExpiration,
     string JwtIssuer,
     string JwtAudience,
+    string MachineAuthenticationAuthority,
     string SeqUri,
     string SeqApiKey,
-    string LogVerboseNamespace,
-    string[] CorsOrigins,
+    string UniqueAppName,
+    IEnumerable<string> CorsOrigins,
     bool UseTyrCorsOrigins,
     string Environment)
 {
-    public bool IsDebug { get; init; }
+    public bool IsDebug { get; private init; }
+
+    public bool StoreDataProtectionKeysOnCache { get; private init; } = CacheConnectionString is not null;
+
+    public string UniqueAppKey => $"{Environment}_{UniqueAppName}";
 
     /// <summary>
     /// Mount /app/dataprotection to dataprotection folder with keys.<br />
@@ -77,7 +85,13 @@ public sealed record TyrHostConfiguration(
         if (environment != "Production")
             authCookieName = $"{authCookieName}_{environment}";
 
+        var cacheConnectionString = TryReadConfig("CacheConnectionString", configuration);
+        if (cacheConnectionString is not null)
+            cacheConnectionString += ",abortConnect=false,defaultDatabase=1";
+
+        // TODO: Implement cookies authentication for typingrealm.org too.
         return new(
+            cacheConnectionString,
             DataProtectionKeysPath: "/app/dataprotection",
             DataProtectionCertPath: "dp.pfx",
             DataProtectionCertPassword: isDebug ? string.Empty : ReadConfig("DpCertPassword", configuration),
@@ -86,9 +100,10 @@ public sealed record TyrHostConfiguration(
             AuthCookieExpiration: TimeSpan.FromDays(1.8),
             JwtIssuer: "https://accounts.google.com",
             JwtAudience: TryReadConfig("JwtAudience", configuration) ?? "400839590162-24pngke3ov8rbi2f3forabpaufaosldg.apps.googleusercontent.com",
+            MachineAuthenticationAuthority: TryReadConfig("MachineAuthenticationAuthority", configuration) ?? "https://auth.typingrealm.com",
             SeqUri: isDebug ? string.Empty : ReadConfig("SeqUri", configuration),
             SeqApiKey: isDebug ? string.Empty : ReadConfig("SeqApiKey", configuration),
-            LogVerboseNamespace: appNamespace,
+            UniqueAppName: appNamespace,
             CorsOrigins: corsOrigins?.Split(';') ?? [],
             UseTyrCorsOrigins: useTyrCorsOrigins,
             Environment: environment)
@@ -108,22 +123,43 @@ public sealed record TyrHostConfiguration(
     }
 }
 
+// TODO: When Redis is required for host - ensure it doesn't start without valid environment variable.
 public static class HostExtensions
 {
+    public static readonly string PodId = Guid.NewGuid().ToString();
+    public static readonly string ConsoleLogOutputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}";
     public static async ValueTask ConfigureTyrApplicationBuilderAsync(
         this WebApplicationBuilder builder, TyrHostConfiguration config)
     {
         // Add OpenAPI documentation.
         builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSchemeTransformer>());
 
+        // Add caching.
+        IConnectionMultiplexer? redis = null;
+        if (config.CacheConnectionString is not null)
+        {
+            redis = await ConnectionMultiplexer.ConnectAsync(config.CacheConnectionString)
+                .ConfigureAwait(false);
+
+            builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
+        }
+
         // Data protection, needed for Cookie authentication.
         if (!config.IsDebug)
         {
             var certBytes = await File.ReadAllBytesAsync(config.DataProtectionCertPath).ConfigureAwait(false);
             var cert = X509CertificateLoader.LoadPkcs12(certBytes, config.DataProtectionCertPassword);
-            builder.Services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(config.DataProtectionKeysPath))
-                .ProtectKeysWithCertificate(cert);
+
+            var dpBuilder = builder.Services.AddDataProtection();
+
+            if (config.StoreDataProtectionKeysOnCache && redis is not null)
+            {
+                dpBuilder = dpBuilder.PersistKeysToStackExchangeRedis(redis, $"{config.UniqueAppKey}_dataprotection");
+            }
+            else
+                dpBuilder = dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(config.DataProtectionKeysPath));
+
+            dpBuilder.ProtectKeysWithCertificate(cert);
         }
 
         // CORS.
@@ -211,6 +247,12 @@ public static class HostExtensions
                                 authProperties).ConfigureAwait(false);
                         }
                     };
+                })
+                .AddJwtBearer("MachineScheme", options =>
+                {
+                    options.Authority = config.MachineAuthenticationAuthority;
+                    options.RequireHttpsMetadata = false;
+                    options.TokenValidationParameters.ValidateAudience = false;
                 });
         }
 
@@ -220,8 +262,12 @@ public static class HostExtensions
             {
                 seqConfig
                     .MinimumLevel.Information()
-                    .MinimumLevel.Override(config.LogVerboseNamespace, LogEventLevel.Verbose)
-                    .WriteTo.Console();
+                    .MinimumLevel.Override("Tyr", LogEventLevel.Verbose)
+                    .MinimumLevel.Override(config.UniqueAppName, LogEventLevel.Verbose)
+                    .WriteTo.Console(outputTemplate: ConsoleLogOutputTemplate)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithProperty("Pod", PodId)
+                    .ReadFrom.Configuration(context.Configuration);
 
                 if (!config.IsDebug)
                 {
@@ -236,6 +282,9 @@ public static class HostExtensions
     public static void ConfigureTyrApplication(
         this WebApplication app, TyrHostConfiguration config)
     {
+        // Log request information with Serilog.
+        app.UseSerilogRequestLogging();
+
         var logger = app.Services.GetRequiredService<ILogger<TyrHostConfiguration>>();
         app.MapOpenApi(); // OpenAPI document.
         app.MapScalarApiReference("docs"); // Scalar on "/docs" url.
@@ -249,7 +298,10 @@ public static class HostExtensions
         }
 
         if (config.UseTyrCorsOrigins)
+        {
             origins.Add("https://*.typingrealm.com");
+            origins.Add("https://*.typingrealm.org");
+        }
 
         origins.AddRange(config.CorsOrigins);
 
@@ -284,11 +336,49 @@ public static class HostExtensions
             .WithDescription("Signs out current user (removes the cookie) so you can sign in with a different login.")
             .RequireAuthorization();
 
+        // Separate url for healthchecks.
+        app.MapGet("/health", () => DateTime.UtcNow)
+            .WithTags("Diagnostics")
+            .WithSummary("Healthcheck")
+            .WithDescription("Responds with 200 when healthy");
+
+        app.MapGet("/pod", () => PodId);
+
         // Add diagnostics endpoint.
         app.MapGet("/diag", () => DateTime.UtcNow)
             .WithTags("Diagnostics")
             .WithSummary("Show diagnostics information")
             .WithDescription("Shows current UTC time of this API pod");
+
+        app.MapGet("/diag/auth", () => DateTime.UtcNow)
+            .WithTags("Diagnostics")
+            .WithSummary("Show diagnostics information")
+            .WithDescription("Shows current UTC time of this API pod")
+            .RequireAuthorization(policy =>
+            {
+                policy.AuthenticationSchemes = [ JwtBearerDefaults.AuthenticationScheme, "MachineScheme" ];
+                policy.RequireAuthenticatedUser();
+            });
+
+        app.MapGet("/diag/auth/machine", () => DateTime.UtcNow)
+            .WithTags("Diagnostics")
+            .WithSummary("Show diagnostics information")
+            .WithDescription("Shows current UTC time of this API pod")
+            .RequireAuthorization(policy =>
+            {
+                policy.AuthenticationSchemes = [ "MachineScheme" ];
+                policy.RequireAuthenticatedUser();
+            });
+
+        app.MapGet("/diag/auth/user", () => DateTime.UtcNow)
+            .WithTags("Diagnostics")
+            .WithSummary("Show diagnostics information")
+            .WithDescription("Shows current UTC time of this API pod")
+            .RequireAuthorization(policy =>
+            {
+                policy.AuthenticationSchemes = [ JwtBearerDefaults.AuthenticationScheme ];
+                policy.RequireAuthenticatedUser();
+            });
     }
 
     // Hacky implementation to reuse the code.
