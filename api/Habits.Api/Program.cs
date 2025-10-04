@@ -2,6 +2,9 @@
 using Habits.Api;
 using Tyr.Framework;
 
+DotNetEnv.Env.Load("/run/secrets/global-secrets.env");
+DotNetEnv.Env.Load("/run/secrets/secrets.env");
+
 var builder = WebApplication.CreateSlimBuilder(args);
 var isDebug = false;
 #if DEBUG

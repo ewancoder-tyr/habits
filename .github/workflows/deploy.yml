@@ -1,100 +1,289 @@
+# TODO: Add badge information on which version is currently deployed to which env.
 name: Deploy
 
 on:
   push:
     branches:
-      - 'main'
+      - "main"
+      - "develop"
+    tags:
+      - "v*"
 
 env:
+  PROJECT_NAME: habits
+  API_IMAGE: habits-api
+  WEB_IMAGE: habits-web
+  API_DOCKERFILE: api/Habits.Api/Dockerfile
+  WEB_DOCKERFILE: web/Dockerfile
   REGISTRY: ghcr.io
+  BADGE_GIST_ID: 0184962696ef0364be7a3f491133f2f9
+  REPO_USER: ewancoder-tyr
+  SONAR_ORG: ewancoder
+  CHECK_FETCH_DEPTH: 30
+  DOTNET_VERSION: "9.0.x"
 
 jobs:
-  build-web-ui:
+  check-changes:
+    name: Check changes
+    runs-on: ubuntu-latest
+    outputs:
+      web_changed: ${{ steps.filter.outputs.web }}
+      api_changed: ${{ steps.filter.outputs.api }}
+      db_changed: ${{ steps.filter.outputs.db }}
+      project_name: ${{ steps.envs.outputs.project_name }}
+      badge_gist_id: ${{ steps.envs.outputs.badge_gist_id }}
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ env.CHECK_FETCH_DEPTH }}
+
+      - name: Check changes
+        id: filter
+        run: ./.github/scripts/check-changes.sh web api db
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+
+      # We need this hack to use env variables in the sub workflows.
+      # And we also need to add them to the outputs of the job above.
+      - name: Set environment variables
+        id: envs
+        run: |
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+          echo "badge_gist_id=$BADGE_GIST_ID" >> $GITHUB_OUTPUT
+
+  generate-todos:
+    name: Check TODOs
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      packages: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Login to GitHub Container registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check TODOs
+        run: ./.github/scripts/list-todos.sh
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/ewancoder/habits-web
+      # TODO: Consider adding icon/logo here.
+      - name: Create TODOs badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ env.BADGE_GIST_ID }}
+          filename: ${{ env.PROJECT_NAME }}-todos-${{ github.ref_name }}.json
+          label: TODOs
+          message: ${{ env.TODOS_COUNT }}
+          color: "#7dcbff"
 
-    - name: Build and push Production API Docker image
-      if: github.ref == 'refs/heads/main'
-      uses: docker/build-push-action@v6
-      with:
-        push: true
-        context: ./frontend
-        file: frontend/Dockerfile-production
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+  test-api:
+    name: Test API
+    runs-on: ubuntu-latest
+    needs: check-changes
+    if: needs.check-changes.outputs.api_changed == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test API
+        if: false # Skip tests for now
+        uses: ./.github/actions/test-dotnet
+        with:
+          folder: api
+          coverageId: ${{ env.API_IMAGE }}
+          gistSecret: ${{ secrets.GIST_SECRET }}
+
+  test-api-mutation:
+    name: API mutation testing
+    runs-on: ubuntu-latest
+    needs: test-api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: API mutation testing
+        uses: ./.github/actions/test-dotnet-mutation
+        with:
+          folder: api
+
+  test-api-sonarqube:
+    name: SonarQube static analysis
+    runs-on: ubuntu-latest
+    needs: test-api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: API Sonar analysis
+        uses: ./.github/actions/test-dotnet-sonarqube
+        with:
+          sonarToken: ${{ secrets.API_SONAR_TOKEN }}
+
   build-api:
+    name: Build API
     runs-on: ubuntu-latest
+    needs: test-api
+    outputs:
+      sha: ${{ steps.build.outputs.sha }}
 
     permissions:
       contents: read
       packages: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Login to GitHub Container registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Push docker image
+        id: build
+        uses: ./.github/actions/build-dotnet
+        with:
+          folder: api
+          imageName: ${{ env.API_IMAGE }}
+          dockerFile: ${{ env.API_DOCKERFILE }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/ewancoder/habits-api
+      - name: Get current time
+        run: |
+          echo "now=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-    - name: Build and push API Docker image
-      id: push
-      uses: docker/build-push-action@v6
-      with:
-        push: true
-        context: ./backend
-        file: backend/Habits.Api/Dockerfile
-        target: final
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+      - name: Upload build info to gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ env.BADGE_GIST_ID }}
+          filename: ${{ env.PROJECT_NAME }}-api-build-${{ github.ref_name }}.json
+          label: API build
+          message: "${{ github.ref_name }}-${{ env.short_sha }}, ${{ env.now }} utc"
+          color: "#b685f2"
 
-  deploy:
+  test-web:
+    name: Test Web
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    needs: [build-web-ui, build-api]
+    needs: check-changes
+    if: needs.check-changes.outputs.web_changed == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test Web
+        if: false # Skip tests for now
+        uses: ./.github/actions/test-angular
+        with:
+          folder: web
+          coverageId: ${{ env.WEB_IMAGE }}
+          gistSecret: ${{ secrets.GIST_SECRET }}
+
+  test-web-mutation:
+    name: Web mutation testing
+    runs-on: ubuntu-latest
+    needs: test-web
+    if: false # Disable for now, doesn't work with Angular 20.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test Web
+        uses: ./.github/actions/test-angular-mutation
+        with:
+          folder: web
+
+  test-web-sonarqube:
+    name: SonarQube static analysis
+    runs-on: ubuntu-latest
+    needs: test-web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test Web
+        uses: ./.github/actions/test-angular-sonarqube
+        with:
+          folder: web
+          sonarToken: ${{ secrets.WEB_SONAR_TOKEN }}
+
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    needs: test-web
+    outputs:
+      sha: ${{ steps.build.outputs.sha }}
 
     permissions:
       contents: read
+      packages: write
 
     steps:
-    - name: Deploy to DO
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        passphrase: ${{ secrets.PASSWORD }}
-        key: ${{ secrets.KEY }}
-        port: ${{ secrets.PORT }}
-        script: |
-          curl https://raw.githubusercontent.com/ewancoder/habits/main/docker-compose-production.yml > /tmp/habits-docker-compose.yml
-          docker compose -f /tmp/habits-docker-compose.yml pull
-          docker compose -f /tmp/habits-docker-compose.yml up -d
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and Push docker image
+        id: build
+        uses: ./.github/actions/build-angular
+        with:
+          folder: web
+          imageName: ${{ env.WEB_IMAGE }}
+          dockerFile: ${{ env.WEB_DOCKERFILE }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get current time
+        run: |
+          echo "now=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Upload build info to gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ env.BADGE_GIST_ID }}
+          filename: ${{ env.PROJECT_NAME }}-web-build-${{ github.ref_name }}.json
+          label: Web build
+          message: "${{ github.ref_name }}-${{ env.short_sha }}, ${{ env.now }} utc"
+          color: "#b685f2"
+
+  deployment:
+    name: Deploy
+    uses: ./.github/workflows/deployment.yml
+    needs: [check-changes, build-api, build-web]
+    if: |
+      always() && !cancelled() && !failure() &&
+      (
+        needs.check-changes.outputs.api_changed == 'true' ||
+        needs.check-changes.outputs.web_changed == 'true' ||
+        needs.check-changes.outputs.db_changed == 'true'
+      )
+    secrets:
+      # TODO: For non-swarm Dev deployment we need to pass HOST_DEV etc here.
+      # Hence, currently we only support Swarm deployments.
+      ssh_host: ${{ secrets.SSH_HOST }}
+      ssh_port: ${{ secrets.SSH_PORT }}
+      ssh_username: ${{ secrets.SSH_USERNAME }}
+      ssh_key: ${{ secrets.SSH_KEY }}
+      ssh_key_passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+      gist_secret: ${{ secrets.GIST_SECRET }}
+    with:
+      # TODO: Unfortunately we cannot access environment variables here.
+      # So any custom variables need to be exported from check-changes step.
+      project_name: ${{ needs.check-changes.outputs.project_name }}
+      badge_gist_id: ${{ needs.check-changes.outputs.badge_gist_id }}
+      db_changed: ${{ needs.check-changes.outputs.db_changed }}
+      api_sha_tag: ${{ needs.build-api.outputs.sha }}
+      web_sha_tag: ${{ needs.build-web.outputs.sha }}

@@ -1,0 +1,139 @@
+networks:
+  internet: # For UDP services to expose ports on Development env.
+    name: tyr-$ENV-habits-net-internet
+  local:
+    name: tyr-$ENV-habits-net-local
+    internal: true
+  deploy:
+    name: tyr-$ENV-habits-net-deploy
+    attachable: true # So that we can attach to the database for deployment.
+    internal: true
+  public:
+    name: tyr-$ENV-net-proxy
+    external: true
+  infra:
+    name: tyr-$ENV-net-infrastructure
+    external: true
+  admin:
+    name: tyr-$ENV-net-administration
+    external: true
+
+secrets:
+  tyr-$ENV-sec-postgres-password:
+    external: true
+  tyr-$ENV-sec-dp:
+    external: true
+  tyr-$ENV-sec-env:
+    external: true
+  tyr-$ENV-habits-sec-env:
+    external: true
+
+services:
+  postgres:
+    image: postgres:17
+    user: 2000:2000
+    volumes:
+      - /data/tyr/$ENV/habits/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - ${POSTGRES_PORT}
+    secrets:
+      - source: tyr-$ENV-sec-postgres-password
+        target: db-password
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - local
+      - deploy
+      #- admin    # Disabled in production until needed.
+      #- internet # Needed for development env to expose ports to host.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 70m
+      placement:
+        constraints:
+          - ${SWARM_INFRA_CONSTRAINT}
+
+  cache:
+    image: valkey/valkey
+    user: 2000:2000
+    command: valkey-server --save 60 1 --dir /data
+    volumes:
+      - /data/tyr/$ENV/habits/cache:/data
+    restart: unless-stopped
+    ports:
+      - ${CACHE_PORT}
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - local
+      #- admin    # Disabled in production until needed.
+      #- internet # Needed for development env to expose ports to host.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 20m
+      placement:
+        constraints:
+          - ${SWARM_INFRA_CONSTRAINT}
+
+  api:
+    image: ghcr.io/ewancoder-tyr/habits-api:${API_TAG}
+    restart: unless-stopped
+    volumes:
+      - /data/tyr/$ENV/habits/data:/app/data # For now - storing data on filesystem. Single replica.
+    secrets:
+      - source: tyr-$ENV-sec-dp
+        target: dp.pfx
+      - source: tyr-$ENV-sec-env
+        target: global-secrets.env
+      - source: tyr-$ENV-habits-sec-env
+        target: secrets.env
+    environment:
+      - HEALTHCHECK_URI=http://localhost:8080/health
+    networks:
+      - local
+      - public
+      - infra
+    deploy:
+      endpoint_mode: dnsrr
+      replicas: ${API_REPLICAS}
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 70m
+      placement:
+        constraints:
+          - ${SWARM_INFRA_CONSTRAINT} # Storing data on filesystem.
+          #- ${SWARM_SERVICE_CONSTRAINT}
+
+  web:
+    image: ghcr.io/ewancoder-tyr/habits-web:${WEB_TAG}
+    restart: unless-stopped
+    networks:
+      - public
+    deploy:
+      endpoint_mode: dnsrr
+      replicas: ${WEB_REPLICAS}
+      resources:
+        limits:
+          memory: 100m
+        reservations:
+          memory: 20m
+      placement:
+        constraints:
+          - ${SWARM_SERVICE_CONSTRAINT}

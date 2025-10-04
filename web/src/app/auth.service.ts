@@ -20,7 +20,7 @@ export class AuthService {
     public async logout() {
         const token = await this.getToken();
         this.http
-            .post('https://api.habits.typingrealm.org/auth/logout', null, {
+            .post('https://api.habits.typingrealm.com/auth/logout', null, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 },
