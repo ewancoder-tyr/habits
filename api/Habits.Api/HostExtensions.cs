@@ -40,7 +40,7 @@ public sealed record TyrHostConfiguration(
     string DataProtectionCertPath,
     string DataProtectionCertPassword,
     string AuthCookieName,
-    string CookiesDomain,
+    IEnumerable<string> AllowedCookieDomains,
     TimeSpan AuthCookieExpiration,
     string JwtIssuer,
     string JwtAudience,
@@ -67,7 +67,7 @@ public sealed record TyrHostConfiguration(
     /// - SeqApiKey - Seq API key for logs.<br />
     /// Optional:<br />
     /// - AuthCookieName - TyrAuthSession if not specified, shared between pet projects.<br />
-    /// - CookiesDomain - typingrealm.com if not specified, shared between pet projects.<br />
+    /// - AllowedCookieDomains - typingrealm.com & typingrealm.org if not specified, shared between pet projects.<br />
     /// - JwtAudience - google auth client ID, shared between pet projects (main TypingRealm) if not specified.<br />
     /// - CorsOrigins - specific list of origins, all TyR subdomains if not specified.<br />
     /// - Environment - if NOT set then production, otherwise dev-like (allows localhost CORS).<br />
@@ -106,7 +106,7 @@ public sealed record TyrHostConfiguration(
             DataProtectionCertPath: dataProtectionCertPath,
             DataProtectionCertPassword: isDebug ? string.Empty : ReadConfig("DpCertPassword", configuration),
             AuthCookieName: authCookieName,
-            CookiesDomain: TryReadConfig("CookiesDomain", configuration) ?? "typingrealm.com",
+            AllowedCookieDomains: TryReadConfig("AllowedCookieDomains", configuration)?.Split(';') ?? ["typingrealm.com", "typingrealm.org"],
             AuthCookieExpiration: TimeSpan.FromDays(1.8),
             JwtIssuer: "https://accounts.google.com",
             JwtAudience: TryReadConfig("JwtAudience", configuration) ?? "400839590162-24pngke3ov8rbi2f3forabpaufaosldg.apps.googleusercontent.com",
@@ -200,11 +200,12 @@ public static class HostExtensions
                 })
                 .AddCookie(options =>
                 {
+                    options.CookieManager = new TyrCookieManager(config.AllowedCookieDomains);
                     options.Cookie.HttpOnly = true;
                     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                     options.Cookie.SameSite = SameSiteMode.Strict;
                     options.Cookie.Name = config.AuthCookieName;
-                    options.Cookie.Domain = config.CookiesDomain;
+                    //options.Cookie.Domain = config.CookiesDomain;
                     options.ExpireTimeSpan = config.AuthCookieExpiration;
                     options.SlidingExpiration = true;
                     options.Events.OnRedirectToLogin = context =>
@@ -219,7 +220,7 @@ public static class HostExtensions
                                 context,
                                 context.HttpContext,
                                 config.AuthCookieName,
-                                config.CookiesDomain);
+                                config.AllowedCookieDomains);
 
                         return Task.CompletedTask;
                     };
@@ -229,7 +230,7 @@ public static class HostExtensions
                             context,
                             context.HttpContext,
                             config.AuthCookieName,
-                            config.CookiesDomain);
+                            config.AllowedCookieDomains);
 
                         return Task.CompletedTask;
                     };
@@ -343,7 +344,7 @@ public static class HostExtensions
                 null,
                 context,
                 config.AuthCookieName,
-                config.CookiesDomain,
+                config.AllowedCookieDomains,
                 delete: true);
         })
             .WithTags("Authentication")
@@ -402,9 +403,16 @@ public static class HostExtensions
         PrincipalContext<CookieAuthenticationOptions>? context,
         HttpContext httpContext,
         string authCookieName,
-        string domain,
+        IEnumerable<string> allowedDomains,
         bool delete = false)
     {
+        var host = httpContext.Request.Host.Host;
+        var domain = allowedDomains.FirstOrDefault(
+            domain => host.EndsWith(domain, StringComparison.InvariantCultureIgnoreCase));
+
+        if (domain is null)
+            throw new InvalidOperationException("Domain is not allowed for cookies.");
+
         DateTimeOffset? expires = null;
         if (context != null)
         {
@@ -468,5 +476,59 @@ public static class TyrApplication
         DotNetEnv.Env.Load("/run/secrets/secrets.env");
 
         return WebApplication.CreateBuilder(args);
+    }
+}
+
+internal sealed class TyrCookieManager : ICookieManager
+{
+    private readonly ChunkingCookieManager _manager = new();
+    private readonly IEnumerable<string> _allowedDomains;
+
+    public TyrCookieManager(IEnumerable<string> allowedDomains)
+    {
+        _allowedDomains = allowedDomains;
+    }
+    public string? GetRequestCookie(HttpContext context, string key)
+    {
+        foreach (var rootDomain in _allowedDomains)
+        {
+            if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
+            {
+                context.Request.Host = new HostString(rootDomain);
+                return _manager.GetRequestCookie(context, key);
+            }
+        }
+
+        return null;
+    }
+
+    public void AppendResponseCookie(HttpContext context, string key, string? value, CookieOptions options)
+    {
+        foreach (var rootDomain in _allowedDomains)
+        {
+            if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
+            {
+                options.Domain = rootDomain;
+                _manager.AppendResponseCookie(context, key, value, options);
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Domain is not allowed for cookies.");
+    }
+
+    public void DeleteCookie(HttpContext context, string key, CookieOptions options)
+    {
+        foreach (var rootDomain in _allowedDomains)
+        {
+            if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
+            {
+                options.Domain = rootDomain;
+                _manager.DeleteCookie(context, key, options);
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Domain is not allowed for cookies.");
     }
 }
