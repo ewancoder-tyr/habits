@@ -43,6 +43,7 @@ jobs:
           fetch-depth: ${{ env.CHECK_FETCH_DEPTH }}
 
       - name: Check changes
+        if: ${{ secrets.SSH_HOST != '' }}
         id: filter
         run: ./.github/scripts/check-changes.sh web api db
         env:
