@@ -11,6 +11,7 @@ using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+using Serilog.Extensions.Logging;
 using StackExchange.Redis;
 
 // ReSharper disable once CheckNamespace
@@ -142,6 +143,28 @@ public static class HostExtensions
     public static async ValueTask ConfigureTyrApplicationBuilderAsync(
         this WebApplicationBuilder builder, TyrHostConfiguration config)
     {
+        // Logging.
+        var loggerBuilder = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Tyr", LogEventLevel.Verbose)
+            .MinimumLevel.Override(config.UniqueAppName, LogEventLevel.Verbose)
+            .WriteTo.Console(outputTemplate: ConsoleLogOutputTemplate)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Pod", PodId)
+            .ReadFrom.Configuration(builder.Configuration);
+
+        if (!config.IsDebug)
+        {
+            loggerBuilder.WriteTo.Seq(
+                config.SeqUri,
+                apiKey: config.SeqApiKey);
+        }
+
+        var serilogLogger = loggerBuilder.CreateLogger();
+        builder.Host.UseSerilog(serilogLogger);
+        var loggerFactory = new LoggerFactory(new[] { new SerilogLoggerProvider(serilogLogger) });
+        var logger = loggerFactory.CreateLogger<TyrHostConfiguration>();
+
         // Add OpenAPI documentation.
         builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSchemeTransformer>());
 
@@ -158,6 +181,7 @@ public static class HostExtensions
         // Data protection, needed for Cookie authentication.
         if (!config.IsDebug)
         {
+            logger.LogInformation("Reading data protection certificate from {CertPath}", config.DataProtectionCertPath);
             var certBytes = await File.ReadAllBytesAsync(config.DataProtectionCertPath).ConfigureAwait(false);
             var cert = X509CertificateLoader.LoadPkcs12(certBytes, config.DataProtectionCertPassword);
 
@@ -165,6 +189,7 @@ public static class HostExtensions
 
             if (config.GlobalCacheConnectionString is not null)
             {
+                logger.LogInformation("Global cache connection string is set, saving DataProtection to global cache.");
                 var globalCache = await ConnectionMultiplexer.ConnectAsync(config.GlobalCacheConnectionString)
                     .ConfigureAwait(false);
 
@@ -193,14 +218,18 @@ public static class HostExtensions
                     options.ForwardDefaultSelector = context =>
                     {
                         if (context.Request.Cookies.ContainsKey(config.AuthCookieName))
+                        {
+                            logger.LogInformation("Default selector is choosing cookie because cookie is present");
                             return CookieAuthenticationDefaults.AuthenticationScheme;
+                        }
 
+                        logger.LogInformation("Default selector is choosing JWT because cookie is not present");
                         return JwtBearerDefaults.AuthenticationScheme;
                     };
                 })
                 .AddCookie(options =>
                 {
-                    options.CookieManager = new TyrCookieManager(config.AllowedCookieDomains);
+                    options.CookieManager = new TyrCookieManager(config.AllowedCookieDomains, logger);
                     options.Cookie.HttpOnly = true;
                     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                     options.Cookie.SameSite = SameSiteMode.Strict;
@@ -226,6 +255,7 @@ public static class HostExtensions
                     };
                     options.Events.OnSignedIn = context =>
                     {
+                        logger.LogInformation("User has signed in, updating auth-info cookie");
                         UpdateAuthInfoCookie(
                             context,
                             context.HttpContext,
@@ -257,10 +287,12 @@ public static class HostExtensions
                             var identity = new ClaimsIdentity(principal.Claims, CookieAuthenticationDefaults.AuthenticationScheme);
                             var authProperties = new AuthenticationProperties { IsPersistent = true };
 
+                            logger.LogInformation("Token is validated and user is signed in, creating a cookie (SignInAsync)");
                             await context.HttpContext.SignInAsync(
                                 CookieAuthenticationDefaults.AuthenticationScheme,
                                 new ClaimsPrincipal(identity),
                                 authProperties).ConfigureAwait(false);
+                            logger.LogInformation("Successfully signed in with cookie auth");
                         }
                     };
                 })
@@ -270,28 +302,6 @@ public static class HostExtensions
                     options.RequireHttpsMetadata = false;
                     options.TokenValidationParameters.ValidateAudience = false;
                 });
-        }
-
-        // Logging.
-        {
-            builder.Host.UseSerilog((context, seqConfig) =>
-            {
-                seqConfig
-                    .MinimumLevel.Information()
-                    .MinimumLevel.Override("Tyr", LogEventLevel.Verbose)
-                    .MinimumLevel.Override(config.UniqueAppName, LogEventLevel.Verbose)
-                    .WriteTo.Console(outputTemplate: ConsoleLogOutputTemplate)
-                    .Enrich.FromLogContext()
-                    .Enrich.WithProperty("Pod", PodId)
-                    .ReadFrom.Configuration(context.Configuration);
-
-                if (!config.IsDebug)
-                {
-                    seqConfig.WriteTo.Seq(
-                        config.SeqUri,
-                        apiKey: config.SeqApiKey);
-                }
-            });
         }
     }
 
@@ -483,22 +493,26 @@ internal sealed class TyrCookieManager : ICookieManager
 {
     private readonly ChunkingCookieManager _manager = new();
     private readonly IEnumerable<string> _allowedDomains;
+    private readonly Microsoft.Extensions.Logging.ILogger _logger;
 
-    public TyrCookieManager(IEnumerable<string> allowedDomains)
+    public TyrCookieManager(IEnumerable<string> allowedDomains, Microsoft.Extensions.Logging.ILogger logger)
     {
         _allowedDomains = allowedDomains;
+        _logger = logger;
     }
+
     public string? GetRequestCookie(HttpContext context, string key)
     {
         foreach (var rootDomain in _allowedDomains)
         {
             if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
             {
-                context.Request.Host = new HostString(rootDomain);
+                _logger.LogInformation("Getting request cookie for domain {Domain} and key {Key}", rootDomain, key);
                 return _manager.GetRequestCookie(context, key);
             }
         }
 
+        _logger.LogInformation("Could not get request cookie for key {Key}", key);
         return null;
     }
 
@@ -509,11 +523,13 @@ internal sealed class TyrCookieManager : ICookieManager
             if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
             {
                 options.Domain = rootDomain;
+                _logger.LogInformation("Set cookie options Domain to {Domain} and appending response cookie for key {Key}", rootDomain, key);
                 _manager.AppendResponseCookie(context, key, value, options);
                 return;
             }
         }
 
+        _logger.LogInformation("Appending cookie for key {Key} is not allowed", key);
         throw new InvalidOperationException("Domain is not allowed for cookies.");
     }
 
@@ -524,11 +540,13 @@ internal sealed class TyrCookieManager : ICookieManager
             if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
             {
                 options.Domain = rootDomain;
+                _logger.LogInformation("Set cookie options Domain to {Domain} and deleting cookie for key {Key}", rootDomain, key);
                 _manager.DeleteCookie(context, key, options);
                 return;
             }
         }
 
+        _logger.LogInformation("Deleting cookie for key {Key} is not allowed", key);
         throw new InvalidOperationException("Domain is not allowed for cookies.");
     }
 }
