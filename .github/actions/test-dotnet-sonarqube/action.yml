@@ -11,6 +11,9 @@ inputs:
   sonarToken:
     description: Sonar secret token
     required: true
+  folder:
+    description: Solution folder
+    required: true
 permissions:
   contents: read
 runs:
@@ -58,9 +61,9 @@ runs:
       shell: bash
       env:
         SONAR_TOKEN: ${{ inputs.sonarToken }}
-      working-directory: api
+      working-directory: ${{ inputs.folder }}
       run: |
-        ../.sonar/scanner/dotnet-sonarscanner begin /k:"${{ env.SONAR_ORG }}_${{ env.PROJECT_NAME }}-api" /o:"${{ env.SONAR_ORG }}" /d:sonar.token="${{ inputs.sonarToken }}" /d:sonar.host.url="https://sonarcloud.io"
+        ../.sonar/scanner/dotnet-sonarscanner begin /k:"${{ env.SONAR_ORG }}-${{ env.PROJECT_NAME }}-api" /o:"${{ env.SONAR_ORG }}" /d:sonar.token="${{ inputs.sonarToken }}" /d:sonar.host.url="https://sonarcloud.io"
         rm *.sln
         dotnet build
         ../.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ inputs.sonarToken }}"
