@@ -1,5 +1,7 @@
 # Habits - single-glance habit tracker
 
+Main repo: [ewancoder-tyr/habits](https://github.com/ewancoder-tyr/habits)
+
 ![license](https://img.shields.io/github/license/ewancoder-tyr/habits?color=blue)
 ![activity](https://img.shields.io/github/commit-activity/m/ewancoder-tyr/habits)
 
