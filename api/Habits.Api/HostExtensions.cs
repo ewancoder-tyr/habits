@@ -186,6 +186,8 @@ public static class HostExtensions
             var cert = X509CertificateLoader.LoadPkcs12(certBytes, config.DataProtectionCertPassword);
 
             var dpBuilder = builder.Services.AddDataProtection();
+            // Unique name per environment - all apps can be signed in with the same cookie.
+            dpBuilder.SetApplicationName($"TyR-{config.Environment}");
 
             if (config.GlobalCacheConnectionString is not null)
             {
