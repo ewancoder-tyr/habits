@@ -18,9 +18,10 @@ export class AuthService {
     constructor(private http: HttpClient) {}
 
     public async logout() {
+        const root = window.location.hostname.split('.').pop() == 'com' ? 'com' : 'org';
         const token = await this.getToken();
         this.http
-            .post('https://api.habits.typingrealm.com/auth/logout', null, {
+            .post(`https://api.habits.typingrealm.${root}/auth/logout`, null, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 },

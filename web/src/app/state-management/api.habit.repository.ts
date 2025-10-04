@@ -7,7 +7,11 @@ import { Habit, CreateHabit, UpdateHabit } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiHabitRepository implements IHabitRepository {
-    private habitsUri = 'https://api.habits.typingrealm.com/api/habits';
+    private get habitsUri() {
+        const root = window.location.hostname.split('.').pop() == 'com' ? 'com' : 'org';
+        return `https://api.habits.typingrealm.${root}/api/habits`;
+    }
+
     constructor(private http: HttpClient) {}
 
     getAll(): Observable<Habit[]> {
