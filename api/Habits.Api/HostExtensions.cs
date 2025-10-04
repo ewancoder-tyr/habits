@@ -507,7 +507,7 @@ internal sealed class TyrCookieManager : ICookieManager
         {
             if (context.Request.Host.Host.EndsWith(rootDomain, StringComparison.InvariantCultureIgnoreCase))
             {
-                _logger.LogInformation("Getting request cookie for domain {Domain} and key {Key}", rootDomain, key);
+                _logger.LogInformation("Getting request cookie for domain {Domain} and key {Key}, from host {Host}", rootDomain, key, context.Request.Host.Host);
                 return _manager.GetRequestCookie(context, key);
             }
         }
