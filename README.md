@@ -1,13 +1,15 @@
 # Habits - single-glance habit tracker
 
-Main repo: [ewancoder-tyr/habits](https://github.com/ewancoder-tyr/habits)
+Main repo: [typingrealm/habits](https://github.com/ewancoder-tyr/habits)
+
+Mirrors: [ewancoder](https://github.com/ewancoder/habits) [gitlab](https://gitlab.com/ewancoder/habits)
 
 ![license](https://img.shields.io/github/license/ewancoder-tyr/habits?color=blue)
 ![activity](https://img.shields.io/github/commit-activity/m/ewancoder-tyr/habits)
 
 | API | UI |
 | --- | -- |
-| [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=ewancoder_habits-api)](https://sonarcloud.io/summary/new_code?id=ewancoder_habits-api) | [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=ewancoder_habits-web)](https://sonarcloud.io/summary/new_code?id=ewancoder_habits-web) |
+| [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=ewancoder-habits-api)](https://sonarcloud.io/summary/new_code?id=ewancoder-habits-api) | [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=ewancoder-habits-web)](https://sonarcloud.io/summary/new_code?id=ewancoder-habits-web) |
 
 A bunch of apps for Flight simulation.
 
